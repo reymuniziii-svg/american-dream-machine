@@ -2,9 +2,12 @@
 tract_outcomes_simple.csv
 tract_covariates.csv
 tract_lookup.json
+life_river_particles.json
 
-# Processing script (not needed for web)
+# Processing scripts (not needed for web)
 process_data.py
+generate_particles.py
+optimize_particles.py
 
 # OS files
 .DS_Store

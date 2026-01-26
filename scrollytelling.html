@@ -172,6 +172,247 @@
             50% { transform: translateY(8px); }
         }
 
+        /* Life River Animation */
+        .life-river {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .life-river__canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .life-river__overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .life-river__title {
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: clamp(var(--text-3xl), 6vw, var(--text-6xl));
+            color: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            max-width: 800px;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .life-river__subtitle {
+            font-size: var(--text-lg);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        .life-river__controls {
+            position: absolute;
+            bottom: 8rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .river-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .river-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .river-btn svg {
+            stroke: white;
+        }
+
+        .river-age {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-3xl);
+            font-weight: 300;
+            color: white;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .river-age__label {
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255, 255, 255, 0.6);
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        .life-river__legend {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: var(--text-sm);
+            color: rgba(255, 255, 255, 0.8);
+            z-index: 20;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .legend-dot--q5 { background: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
+        .legend-dot--q4 { background: var(--high-mobility); }
+        .legend-dot--q3 { background: #81B29A; }
+        .legend-dot--q2 { background: var(--low-mobility); }
+        .legend-dot--q1 { background: var(--poverty-trap); }
+
+        .life-river__stats {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            text-align: right;
+            z-index: 20;
+        }
+
+        .river-stat {
+            margin-bottom: 1.5rem;
+        }
+
+        .river-stat__number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-4xl);
+            font-weight: 300;
+            color: white;
+        }
+
+        .river-stat__number--rose {
+            color: var(--highlight);
+        }
+
+        .river-stat__number--fell {
+            color: var(--low-mobility);
+        }
+
+        .river-stat__label {
+            font-size: var(--text-sm);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .life-river__scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: var(--text-sm);
+            animation: bounce 2s ease infinite;
+            z-index: 20;
+        }
+
+        .life-river__scroll-hint svg {
+            stroke: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Quintile lanes background */
+        .quintile-lanes {
+            position: absolute;
+            top: 15%;
+            left: 0;
+            right: 0;
+            bottom: 20%;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        .quintile-lane {
+            flex: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            padding-left: 1rem;
+        }
+
+        .quintile-lane:last-child {
+            border-bottom: none;
+        }
+
+        .quintile-lane__label {
+            font-size: var(--text-xs);
+            color: rgba(255, 255, 255, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Mobile responsive for Life River */
+        @media (max-width: 768px) {
+            .life-river__legend {
+                top: auto;
+                bottom: 12rem;
+                left: 1rem;
+            }
+
+            .life-river__stats {
+                display: none;
+            }
+
+            .life-river__controls {
+                bottom: 6rem;
+            }
+
+            .river-age {
+                font-size: var(--text-2xl);
+                min-width: 100px;
+            }
+
+            .river-btn {
+                width: 44px;
+                height: 44px;
+            }
+        }
+
         /* Scrollytelling Container */
         .scroll-container {
             position: relative;
@@ -731,6 +972,89 @@
 
     <!-- Tooltip -->
     <div class="tooltip" id="tooltip"></div>
+
+    <!-- Life River Animation Section -->
+    <section class="life-river" id="lifeRiver">
+        <canvas class="life-river__canvas" id="riverCanvas"></canvas>
+
+        <!-- Quintile lane backgrounds -->
+        <div class="quintile-lanes">
+            <div class="quintile-lane"><span class="quintile-lane__label">Top 20%</span></div>
+            <div class="quintile-lane"><span class="quintile-lane__label">60-80%</span></div>
+            <div class="quintile-lane"><span class="quintile-lane__label">40-60%</span></div>
+            <div class="quintile-lane"><span class="quintile-lane__label">20-40%</span></div>
+            <div class="quintile-lane"><span class="quintile-lane__label">Bottom 20%</span></div>
+        </div>
+
+        <!-- Content overlay -->
+        <div class="life-river__overlay">
+            <h1 class="life-river__title">The American Dream Machine</h1>
+            <p class="life-river__subtitle">Watch 5,000 lives flow through the income ladder over 35 years</p>
+        </div>
+
+        <!-- Legend -->
+        <div class="life-river__legend">
+            <div class="legend-row">
+                <div class="legend-dot legend-dot--q5"></div>
+                <span>Reached top 20%</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-dot legend-dot--q4"></div>
+                <span>Upper middle</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-dot legend-dot--q3"></div>
+                <span>Middle</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-dot legend-dot--q2"></div>
+                <span>Lower middle</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-dot legend-dot--q1"></div>
+                <span>Bottom 20%</span>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="life-river__stats">
+            <div class="river-stat">
+                <div class="river-stat__number river-stat__number--rose" id="roseCount">0</div>
+                <div class="river-stat__label">Rose from poverty to wealth</div>
+            </div>
+            <div class="river-stat">
+                <div class="river-stat__number river-stat__number--fell" id="fellCount">0</div>
+                <div class="river-stat__label">Fell from wealth to poverty</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="life-river__controls">
+            <button class="river-btn" id="riverPlayBtn" title="Play/Pause">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                </svg>
+            </button>
+            <div class="river-age">
+                <span id="riverAge">Age 0</span>
+                <span class="river-age__label">Years old</span>
+            </div>
+            <button class="river-btn" id="riverResetBtn" title="Reset">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Scroll hint -->
+        <div class="life-river__scroll-hint">
+            <span>Scroll to explore the data</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+        </div>
+    </section>
 
     <!-- Hero Section -->
     <section class="hero">
@@ -1470,6 +1794,273 @@
             };
         }
 
+        // ========================================
+        // LIFE RIVER ANIMATION
+        // ========================================
+
+        let particleData = null;
+        let riverCanvas = null;
+        let riverCtx = null;
+        let riverAnimating = false;
+        let riverAge = 0;
+        let riverAnimationId = null;
+        let riverStartTime = null;
+        const RIVER_DURATION = 15000; // 15 seconds for full animation
+
+        // Quintile colors
+        const quintileColors = {
+            1: { r: 163, g: 50, b: 11 },    // Rust - poverty trap
+            2: { r: 224, g: 122, b: 95 },   // Terra cotta
+            3: { r: 129, g: 178, b: 154 },  // Sage
+            4: { r: 46, g: 235, b: 120 },   // Emerald
+            5: { r: 255, g: 215, b: 0 }     // Gold - reached top
+        };
+
+        // Initialize Life River
+        function initLifeRiver() {
+            riverCanvas = document.getElementById('riverCanvas');
+            if (!riverCanvas) return;
+
+            riverCtx = riverCanvas.getContext('2d');
+            resizeRiverCanvas();
+            window.addEventListener('resize', resizeRiverCanvas);
+
+            // Setup controls
+            const playBtn = document.getElementById('riverPlayBtn');
+            const resetBtn = document.getElementById('riverResetBtn');
+
+            playBtn.addEventListener('click', toggleRiverAnimation);
+            resetBtn.addEventListener('click', resetRiverAnimation);
+
+            // Auto-play after a short delay
+            setTimeout(() => {
+                if (particleData) {
+                    startRiverAnimation();
+                }
+            }, 1000);
+        }
+
+        function resizeRiverCanvas() {
+            if (!riverCanvas) return;
+            const section = document.getElementById('lifeRiver');
+            riverCanvas.width = section.offsetWidth * window.devicePixelRatio;
+            riverCanvas.height = section.offsetHeight * window.devicePixelRatio;
+            riverCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            if (!riverAnimating) {
+                drawRiverFrame(riverAge);
+            }
+        }
+
+        function toggleRiverAnimation() {
+            if (riverAnimating) {
+                pauseRiverAnimation();
+            } else {
+                startRiverAnimation();
+            }
+        }
+
+        function startRiverAnimation() {
+            if (!particleData) return;
+
+            riverAnimating = true;
+            riverStartTime = performance.now() - (riverAge / 35) * RIVER_DURATION;
+
+            // Update play button to pause icon
+            const playBtn = document.getElementById('riverPlayBtn');
+            playBtn.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+                    <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+                </svg>
+            `;
+
+            animateRiver();
+        }
+
+        function pauseRiverAnimation() {
+            riverAnimating = false;
+            if (riverAnimationId) {
+                cancelAnimationFrame(riverAnimationId);
+            }
+
+            // Update pause button to play icon
+            const playBtn = document.getElementById('riverPlayBtn');
+            playBtn.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                </svg>
+            `;
+        }
+
+        function resetRiverAnimation() {
+            pauseRiverAnimation();
+            riverAge = 0;
+            document.getElementById('riverAge').textContent = 'Age 0';
+            document.getElementById('roseCount').textContent = '0';
+            document.getElementById('fellCount').textContent = '0';
+            drawRiverFrame(0);
+        }
+
+        function animateRiver() {
+            if (!riverAnimating) return;
+
+            const elapsed = performance.now() - riverStartTime;
+            const progress = Math.min(elapsed / RIVER_DURATION, 1);
+            riverAge = progress * 35;
+
+            drawRiverFrame(riverAge);
+
+            // Update age display
+            document.getElementById('riverAge').textContent = `Age ${Math.round(riverAge)}`;
+
+            // Update stats at certain ages
+            if (riverAge >= 35) {
+                updateRiverStats();
+            }
+
+            if (progress < 1) {
+                riverAnimationId = requestAnimationFrame(animateRiver);
+            } else {
+                pauseRiverAnimation();
+                riverAge = 35;
+            }
+        }
+
+        function drawRiverFrame(age) {
+            if (!riverCtx || !particleData) return;
+
+            const width = riverCanvas.width / window.devicePixelRatio;
+            const height = riverCanvas.height / window.devicePixelRatio;
+
+            // Clear canvas
+            riverCtx.clearRect(0, 0, width, height);
+
+            // Calculate drawing area (leaving space for UI)
+            const topMargin = height * 0.15;
+            const bottomMargin = height * 0.20;
+            const drawHeight = height - topMargin - bottomMargin;
+            const leftMargin = width * 0.08;
+            const rightMargin = width * 0.08;
+            const drawWidth = width - leftMargin - rightMargin;
+
+            // Key ages for interpolation
+            const keyAges = particleData.meta.ages;
+
+            // Draw each particle
+            particleData.particles.forEach((p, i) => {
+                // Interpolate Y position based on current age
+                const y = interpolateParticleY(p.p, age, keyAges);
+
+                // X position based on age (0 = left, 35 = right)
+                const x = leftMargin + (age / 35) * drawWidth;
+
+                // Y position (quintile 5 = top, quintile 1 = bottom)
+                const yPos = topMargin + (1 - y / 5) * drawHeight;
+
+                // Get color based on ending quintile (fade in as we approach end)
+                const endQ = p.e;
+                const startQ = p.s;
+                const colorProgress = Math.min(1, age / 25);
+
+                // Interpolate between start and end colors
+                const startColor = quintileColors[startQ];
+                const endColor = quintileColors[endQ];
+
+                const r = Math.round(startColor.r + (endColor.r - startColor.r) * colorProgress);
+                const g = Math.round(startColor.g + (endColor.g - startColor.g) * colorProgress);
+                const b = Math.round(startColor.b + (endColor.b - startColor.b) * colorProgress);
+
+                // Draw particle with trail
+                const trailLength = 30;
+                const trailPoints = [];
+
+                for (let t = 0; t <= trailLength; t++) {
+                    const trailAge = Math.max(0, age - t * 0.3);
+                    const trailY = interpolateParticleY(p.p, trailAge, keyAges);
+                    const trailX = leftMargin + (trailAge / 35) * drawWidth;
+                    const trailYPos = topMargin + (1 - trailY / 5) * drawHeight;
+                    trailPoints.push({ x: trailX, y: trailYPos, alpha: 1 - t / trailLength });
+                }
+
+                // Draw trail
+                for (let t = trailPoints.length - 1; t > 0; t--) {
+                    const pt = trailPoints[t];
+                    const alpha = pt.alpha * 0.3;
+                    riverCtx.beginPath();
+                    riverCtx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+                    riverCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                    riverCtx.fill();
+                }
+
+                // Draw main particle
+                const particleSize = (p.r || p.f) ? 4 : 3; // Larger for special particles
+                const glow = (p.r && age > 30) ? 8 : 0; // Glow for "rose" particles
+
+                if (glow > 0) {
+                    riverCtx.beginPath();
+                    riverCtx.arc(x, yPos, particleSize + glow, 0, Math.PI * 2);
+                    riverCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.2)`;
+                    riverCtx.fill();
+                }
+
+                riverCtx.beginPath();
+                riverCtx.arc(x, yPos, particleSize, 0, Math.PI * 2);
+                riverCtx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.85)`;
+                riverCtx.fill();
+            });
+
+            // Draw age marker line
+            const markerX = leftMargin + (age / 35) * drawWidth;
+            riverCtx.beginPath();
+            riverCtx.moveTo(markerX, topMargin - 10);
+            riverCtx.lineTo(markerX, height - bottomMargin + 10);
+            riverCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            riverCtx.lineWidth = 1;
+            riverCtx.stroke();
+        }
+
+        function interpolateParticleY(path, age, keyAges) {
+            // Find the two key ages surrounding the current age
+            let prevIdx = 0;
+            for (let i = 0; i < keyAges.length - 1; i++) {
+                if (age >= keyAges[i] && age <= keyAges[i + 1]) {
+                    prevIdx = i;
+                    break;
+                }
+            }
+
+            const prevAge = keyAges[prevIdx];
+            const nextAge = keyAges[Math.min(prevIdx + 1, keyAges.length - 1)];
+            const prevY = path[prevIdx][1];
+            const nextY = path[Math.min(prevIdx + 1, path.length - 1)][1];
+
+            if (nextAge === prevAge) return prevY;
+
+            const t = (age - prevAge) / (nextAge - prevAge);
+            // Smooth interpolation
+            const smoothT = t * t * (3 - 2 * t);
+            return prevY + (nextY - prevY) * smoothT;
+        }
+
+        function updateRiverStats() {
+            if (!particleData) return;
+            const stats = particleData.stats;
+            animateCounter(document.getElementById('roseCount'), stats.roseBottomToTop, 1000);
+            animateCounter(document.getElementById('fellCount'), stats.fellTopToBottom, 1000);
+        }
+
+        // Load particle data
+        async function loadParticleData() {
+            try {
+                const res = await fetch('particles_optimized.json');
+                particleData = await res.json();
+                console.log('Loaded', particleData.meta.n, 'particles');
+                initLifeRiver();
+            } catch (err) {
+                console.log('Particle data not found, Life River disabled');
+            }
+        }
+
         // Load all data
         async function loadData() {
             try {
@@ -1486,6 +2077,9 @@
                 const geoRes = await fetch('us-counties.json');
                 countiesGeoJson = await geoRes.json();
                 console.log('Loaded county geometries');
+
+                // Load particle data for Life River (non-blocking)
+                loadParticleData();
 
                 // Animate hero stats
                 animateCounter(document.getElementById('stat-tracts'), 72014);
