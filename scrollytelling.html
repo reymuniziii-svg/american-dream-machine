@@ -23,6 +23,9 @@
     <!-- Scrollama -->
     <script src="https://unpkg.com/scrollama@3.2.0/build/scrollama.min.js"></script>
 
+    <!-- Turf.js for geospatial operations -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
@@ -768,6 +771,26 @@
             background: var(--low-mobility);
         }
 
+        .county-card__comparison {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #f0f0f0;
+            border-radius: 50px;
+            font-size: var(--text-sm);
+            margin-top: 0.5rem;
+            margin-left: 0.5rem;
+        }
+
+        .county-card__comparison.positive {
+            background: rgba(46, 235, 120, 0.15);
+            color: #0a6b35;
+        }
+
+        .county-card__comparison.negative {
+            background: rgba(163, 50, 11, 0.15);
+            color: #8b2f0d;
+        }
+
         .county-card__story {
             padding: 2rem;
             font-size: var(--text-lg);
@@ -1336,6 +1359,7 @@
                         <span class="county-card__score-label">mobility score</span>
                     </div>
                     <div class="county-card__percentile" id="countyPercentile">Top 35% of US</div>
+                    <span class="county-card__comparison" id="countyComparison"></span>
                 </div>
             </div>
 
@@ -1431,49 +1455,57 @@
 
         // Step-specific map configurations for visual interest
         const stepMapConfigs = {
-            1: { opacity: 0.4, highlight: null, highlightLow: false },           // Intro - map dimmed
+            1: { opacity: 0.75, highlight: null, highlightLow: false },          // Intro - visible but subtle
             2: { opacity: 1.0, highlight: null, highlightLow: false },           // Reveal - full color
-            3: { opacity: 0.5, highlight: ['38', '46', '31'], highlightLow: false }, // Great Plains: ND, SD, NE highlighted
-            4: { opacity: 0.5, highlight: null, highlightLow: true },            // Urban - low mobility emphasized
-            5: { opacity: 1.0, highlight: ['17031'], highlightLow: false },      // Chicago - Cook County highlighted
+            3: { opacity: 1.0, highlight: ['38', '46', '31'], dimOpacity: 0.6, highlightLow: false }, // Great Plains: ND, SD, NE highlighted
+            4: { opacity: 1.0, highlight: null, dimOpacity: 0.6, highlightLow: true },               // Urban - low mobility emphasized
+            5: { opacity: 1.0, highlight: ['17031'], dimOpacity: 0.55, highlightLow: false },        // Chicago - Cook County highlighted
             6: { opacity: 1.0, highlight: null, highlightLow: false },           // Demographics - full visibility
-            7: { opacity: 0.9, highlight: null, highlightLow: false },           // Explorer
-            8: { opacity: 0.7, highlight: null, highlightLow: false }            // Closing
+            7: { opacity: 1.0, highlight: null, highlightLow: false },           // Explorer
+            8: { opacity: 0.85, highlight: null, highlightLow: false }           // Closing
         };
 
-        // Color scale for mobility (kfr values typically 0.25-0.65)
+        // Quantile-based color scale for mobility (7 classes for better distribution)
+        // Breaks based on data quantiles from summary.json: p10=0.339, p25=0.38, median=0.425, p75=0.473, p90=0.522
+        const COLOR_BREAKS = [0.34, 0.38, 0.42, 0.46, 0.50, 0.54];
+        const QUANTILE_COLORS = [
+            [163, 50, 11],    // Rust - lowest tier
+            [196, 85, 50],    // Dark terra cotta
+            [224, 122, 95],   // Terra cotta
+            [220, 190, 90],   // Yellow - middle
+            [129, 178, 154],  // Sage
+            [70, 200, 140],   // Light emerald
+            [46, 235, 120],   // Emerald - highest tier
+        ];
+
         function getMobilityColor(kfr, alpha = 180) {
             if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
 
-            // Normalize to 0-1 range (kfr typically 0.25 to 0.65)
-            const normalized = Math.max(0, Math.min(1, (kfr - 0.25) / 0.4));
+            // Find the quantile bin
+            let bin = COLOR_BREAKS.findIndex(b => kfr < b);
+            if (bin === -1) bin = COLOR_BREAKS.length; // Above all breaks
 
-            // Color interpolation: rust -> terra cotta -> sage -> emerald
-            if (normalized < 0.33) {
-                const t = normalized / 0.33;
+            // Get base color for bin
+            const color = QUANTILE_COLORS[bin];
+
+            // Smooth interpolation within bin for gradual transitions
+            let lowerBound = bin === 0 ? 0.25 : COLOR_BREAKS[bin - 1];
+            let upperBound = bin === COLOR_BREAKS.length ? 0.65 : COLOR_BREAKS[bin];
+            let t = (kfr - lowerBound) / (upperBound - lowerBound);
+            t = Math.max(0, Math.min(1, t));
+
+            // Interpolate to next color if not at top
+            if (bin < QUANTILE_COLORS.length - 1) {
+                const nextColor = QUANTILE_COLORS[bin + 1];
                 return [
-                    163 + (224 - 163) * t,  // R: rust to terra cotta
-                    50 + (122 - 50) * t,    // G
-                    11 + (95 - 11) * t,     // B
-                    alpha
-                ];
-            } else if (normalized < 0.66) {
-                const t = (normalized - 0.33) / 0.33;
-                return [
-                    224 + (129 - 224) * t,  // R: terra cotta to sage
-                    122 + (178 - 122) * t,  // G
-                    95 + (154 - 95) * t,    // B
-                    alpha
-                ];
-            } else {
-                const t = (normalized - 0.66) / 0.34;
-                return [
-                    129 + (46 - 129) * t,   // R: sage to emerald
-                    178 + (235 - 178) * t,  // G
-                    154 + (120 - 154) * t,  // B
+                    Math.round(color[0] + (nextColor[0] - color[0]) * t),
+                    Math.round(color[1] + (nextColor[1] - color[1]) * t),
+                    Math.round(color[2] + (nextColor[2] - color[2]) * t),
                     alpha
                 ];
             }
+
+            return [...color, alpha];
         }
 
         // Animate counter
@@ -1521,15 +1553,19 @@
                     const isLowMobility = config.highlightLow && kfr < 0.38;
 
                     // Calculate alpha based on highlight state and config
+                    // Use dimOpacity for non-highlighted areas when highlights are active
                     let alpha;
                     if (isHighlighted) {
-                        alpha = 240; // Bright highlight
+                        alpha = 255; // Full brightness for highlighted
                     } else if (isLowMobility) {
-                        alpha = 220; // Emphasize low mobility areas
+                        alpha = 240; // Emphasize low mobility areas
                     } else if (config.highlight || config.highlightLow) {
-                        alpha = Math.floor(100 * config.opacity); // Dim non-highlighted
+                        // Use dimOpacity for background, minimum 0.55 to keep detail visible
+                        const dimOp = config.dimOpacity || 0.55;
+                        alpha = Math.floor(200 * dimOp);
                     } else {
-                        alpha = Math.floor(180 * config.opacity);
+                        // Normal display - high visibility
+                        alpha = Math.floor(220 * config.opacity);
                     }
 
                     return [baseColor[0], baseColor[1], baseColor[2], alpha];
@@ -1537,13 +1573,13 @@
                 getLineColor: f => {
                     const fips = f.properties.GEOID || f.properties.fips;
                     const isHighlighted = config.highlight?.some(code => fips.startsWith(code));
-                    // Brighter borders for highlighted regions
-                    return isHighlighted ? [255, 255, 255, 200] : [255, 255, 255, 60];
+                    // Brighter borders for highlighted regions, visible borders for all
+                    return isHighlighted ? [255, 255, 255, 220] : [255, 255, 255, 100];
                 },
                 lineWidthMinPixels: f => {
                     const fips = f.properties?.GEOID || f.properties?.fips;
                     const isHighlighted = config.highlight?.some(code => fips?.startsWith(code));
-                    return isHighlighted ? 1.5 : 0.5;
+                    return isHighlighted ? 2 : 1;
                 },
                 pickable: true,
                 autoHighlight: true,
@@ -1600,7 +1636,7 @@
         }
 
         // Select county and show details
-        function selectCounty(county) {
+        function selectCounty(county, flyToCounty = false) {
             selectedCounty = county;
 
             // Show county card
@@ -1609,7 +1645,10 @@
 
             // Update card content
             document.getElementById('countyName').textContent = county.name || 'Unknown Area';
-            document.getElementById('countyLocation').textContent = county.state || '';
+            document.getElementById('countyLocation').textContent = STATE_NAMES[county.state] || county.state || '';
+
+            // Render mini-map
+            renderMiniMap(county);
 
             const kfr = county.kfr || 0;
             document.getElementById('countyScore').textContent = kfr.toFixed(2);
@@ -1618,6 +1657,21 @@
             const pct = county.kfr_pct || 50;
             pctEl.textContent = `Top ${Math.round(100 - pct)}% of US`;
             pctEl.className = 'county-card__percentile' + (pct < 50 ? ' low' : '');
+
+            // Update comparison badge (national median is 0.425 from summary.json)
+            const compEl = document.getElementById('countyComparison');
+            const nationalMedian = 0.425;
+            const diff = Math.round((kfr - nationalMedian) * 100);
+            if (diff !== 0) {
+                const sign = diff > 0 ? '+' : '';
+                compEl.textContent = `${sign}${diff}% vs national avg`;
+                compEl.className = 'county-card__comparison ' + (diff > 0 ? 'positive' : 'negative');
+                compEl.style.display = 'inline-block';
+            } else {
+                compEl.textContent = 'At national average';
+                compEl.className = 'county-card__comparison';
+                compEl.style.display = 'inline-block';
+            }
 
             // Generate story
             const income = Math.round(kfr * 80000 + 15000);
@@ -1649,8 +1703,123 @@
             document.getElementById('barHisp').style.width = `${kfrH * 100}%`;
             document.getElementById('valHisp').textContent = kfrH ? kfrH.toFixed(2) : 'N/A';
 
-            // Scroll to explorer section
-            document.getElementById('explorer').scrollIntoView({ behavior: 'smooth' });
+            // Fly map to county if requested
+            if (flyToCounty && map && countiesGeoJson) {
+                const feature = countiesGeoJson.features.find(f =>
+                    (f.properties.GEOID || f.id) === county.fips
+                );
+                if (feature) {
+                    try {
+                        const bounds = turf.bbox(feature);
+                        map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], {
+                            padding: 60,
+                            duration: 1200
+                        });
+                    } catch (e) {}
+                }
+            }
+
+            // Only scroll if card not visible in viewport (avoid shaking)
+            const rect = card.getBoundingClientRect();
+            if (rect.top > window.innerHeight || rect.bottom < 0) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // State FIPS to name lookup
+        const STATE_NAMES = {
+            '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California',
+            '08':'Colorado','09':'Connecticut','10':'Delaware','11':'District of Columbia','12':'Florida',
+            '13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana',
+            '19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine',
+            '24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota',
+            '28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada',
+            '33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York',
+            '37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma',
+            '41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina',
+            '46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont',
+            '51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+        };
+
+        // Find county using point-in-polygon with turf.js
+        function findCountyByLocation(lat, lon) {
+            if (!countiesGeoJson) return null;
+
+            const point = turf.point([lon, lat]);
+
+            // Try exact polygon match first
+            for (const feature of countiesGeoJson.features) {
+                try {
+                    if (turf.booleanPointInPolygon(point, feature)) {
+                        const fips = feature.properties.GEOID || feature.id;
+                        return countyData.find(c => c.fips === fips);
+                    }
+                } catch (e) {
+                    // Skip invalid geometries
+                }
+            }
+
+            // Fallback: find nearest centroid
+            let nearest = null;
+            let minDist = Infinity;
+
+            for (const county of countyData) {
+                if (county.centroid) {
+                    const dist = turf.distance(point, turf.point(county.centroid));
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = county;
+                    }
+                }
+            }
+
+            return nearest;
+        }
+
+        // Lookup ZIP code via free API
+        async function lookupZipCode(zip) {
+            try {
+                const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+                if (!res.ok) return null;
+                const data = await res.json();
+                const place = data.places[0];
+                return {
+                    lat: parseFloat(place.latitude),
+                    lon: parseFloat(place.longitude),
+                    city: place['place name'],
+                    state: data['state']
+                };
+            } catch {
+                return null;
+            }
+        }
+
+        // Render county shape in mini-map SVG
+        function renderMiniMap(county) {
+            const svg = document.getElementById('miniMap');
+            if (!svg) return;
+            svg.innerHTML = '';
+
+            const feature = countiesGeoJson?.features.find(f =>
+                (f.properties.GEOID || f.id) === county.fips
+            );
+            if (!feature) return;
+
+            try {
+                const projection = d3.geoMercator().fitSize([180, 100], feature);
+                const pathGen = d3.geoPath().projection(projection);
+
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', pathGen(feature));
+                const color = getMobilityColor(county.kfr, 255);
+                pathEl.setAttribute('fill', `rgb(${color[0]},${color[1]},${color[2]})`);
+                pathEl.setAttribute('stroke', '#333');
+                pathEl.setAttribute('stroke-width', '2');
+                pathEl.setAttribute('transform', 'translate(10,10)');
+                svg.appendChild(pathEl);
+            } catch (e) {
+                console.log('Mini-map render error:', e);
+            }
         }
 
         // Step hints for the legend
@@ -1813,26 +1982,25 @@
 
                     const { latitude, longitude } = pos.coords;
 
-                    // Find nearest county (simple approach - find closest centroid)
-                    // In production, would use point-in-polygon
-                    let nearestCounty = null;
-                    let minDist = Infinity;
+                    // Find county using point-in-polygon with turf.js
+                    const county = findCountyByLocation(latitude, longitude);
 
-                    countyData.forEach(county => {
-                        // Very rough approximation - would need actual centroids
-                        const stateLon = -98; // Default
-                        const stateLat = 38;
-                        const dist = Math.abs(longitude - stateLon) + Math.abs(latitude - stateLat);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            nearestCounty = county;
-                        }
-                    });
-
-                    if (nearestCounty) {
-                        selectCounty(nearestCounty);
+                    if (county) {
+                        selectCounty(county, true); // Fly to county on map
+                    } else {
+                        findBtn.textContent = 'County not found';
+                        setTimeout(() => resetFindBtn(), 2000);
+                        return;
                     }
 
+                    resetFindBtn();
+                } catch (err) {
+                    console.error('Geolocation error:', err);
+                    findBtn.textContent = 'Location unavailable';
+                    setTimeout(() => resetFindBtn(), 2000);
+                }
+
+                function resetFindBtn() {
                     findBtn.innerHTML = `
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
@@ -1840,50 +2008,87 @@
                         </svg>
                         Find My Neighborhood
                     `;
-                } catch (err) {
-                    console.error('Geolocation error:', err);
-                    findBtn.textContent = 'Location unavailable';
-                    setTimeout(() => {
-                        findBtn.innerHTML = `
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                            Find My Neighborhood
-                        `;
-                    }, 2000);
                 }
             });
         }
 
-        // Search functionality
+        // Search functionality with ZIP code and state name support
+        async function searchForCounty(query) {
+            if (!query || query.length < 2) return null;
+
+            // Check for ZIP code pattern (5 digits)
+            if (/^\d{5}$/.test(query)) {
+                const location = await lookupZipCode(query);
+                if (location) {
+                    const county = findCountyByLocation(location.lat, location.lon);
+                    if (county) return county;
+                }
+                return null;
+            }
+
+            // Search by county name or state name
+            const queryLower = query.toLowerCase();
+
+            // Build state name lookup for searching
+            const stateNameToFips = {};
+            Object.entries(STATE_NAMES).forEach(([fips, name]) => {
+                stateNameToFips[name.toLowerCase()] = fips;
+            });
+
+            // Find matching counties
+            const matches = countyData.filter(c => {
+                // Match county name
+                if (c.name && c.name.toLowerCase().includes(queryLower)) return true;
+                // Match state name (convert FIPS to name first)
+                const stateName = STATE_NAMES[c.state];
+                if (stateName && stateName.toLowerCase().includes(queryLower)) return true;
+                return false;
+            });
+
+            // Sort by relevance - exact name matches first
+            matches.sort((a, b) => {
+                const aExact = a.name && a.name.toLowerCase().startsWith(queryLower);
+                const bExact = b.name && b.name.toLowerCase().startsWith(queryLower);
+                if (aExact && !bExact) return -1;
+                if (!aExact && bExact) return 1;
+                return 0;
+            });
+
+            return matches[0] || null;
+        }
+
         function setupSearch() {
             const searchInput = document.getElementById('searchInput');
+            let isSearching = false;
 
-            searchInput.addEventListener('input', debounce((e) => {
-                const query = e.target.value.toLowerCase().trim();
-                if (query.length < 2) return;
+            searchInput.addEventListener('input', debounce(async (e) => {
+                const query = e.target.value.trim();
+                if (query.length < 2 || isSearching) return;
 
-                // Find matching counties
-                const matches = countyData.filter(c =>
-                    (c.name && c.name.toLowerCase().includes(query)) ||
-                    (c.state && c.state.toLowerCase().includes(query))
-                ).slice(0, 5);
-
-                if (matches.length > 0) {
-                    selectCounty(matches[0]);
+                isSearching = true;
+                try {
+                    const county = await searchForCounty(query);
+                    if (county) {
+                        selectCounty(county);
+                    }
+                } finally {
+                    isSearching = false;
                 }
-            }, 300));
+            }, 400));
 
-            searchInput.addEventListener('keypress', (e) => {
+            searchInput.addEventListener('keypress', async (e) => {
                 if (e.key === 'Enter') {
-                    const query = e.target.value.toLowerCase().trim();
-                    const matches = countyData.filter(c =>
-                        (c.name && c.name.toLowerCase().includes(query)) ||
-                        (c.state && c.state.toLowerCase().includes(query))
-                    );
-                    if (matches.length > 0) {
-                        selectCounty(matches[0]);
+                    const query = e.target.value.trim();
+                    if (isSearching) return;
+
+                    isSearching = true;
+                    try {
+                        const county = await searchForCounty(query);
+                        if (county) {
+                            selectCounty(county);
+                        }
+                    } finally {
+                        isSearching = false;
                     }
                 }
             });
@@ -1937,6 +2142,13 @@
         let ageIndexLookup = null;
         let particlesByQuintile = null;
 
+        // Pre-allocated position buffers (filled on data load, reused every frame)
+        let positionBufferX = null;
+        let positionBufferY = null;
+        let specialFlags = null;       // 0 = normal, 1 = rose/fell (special)
+        let startQuintiles = null;     // Pre-extract start quintiles
+        let endQuintiles = null;       // Pre-extract end quintiles
+
         // Initialize Life River
         function initLifeRiver() {
             riverCanvas = document.getElementById('riverCanvas');
@@ -1944,7 +2156,23 @@
 
             riverCtx = riverCanvas.getContext('2d');
             resizeRiverCanvas();
-            window.addEventListener('resize', resizeRiverCanvas);
+
+            // Throttled resize handler using requestAnimationFrame
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                if (resizeTimeout) cancelAnimationFrame(resizeTimeout);
+                resizeTimeout = requestAnimationFrame(resizeRiverCanvas);
+            });
+
+            // Pause animation when Life River section not visible
+            const riverObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting && riverAnimating) {
+                        pauseRiverAnimation();
+                    }
+                });
+            }, { threshold: 0.1 });
+            riverObserver.observe(document.getElementById('lifeRiver'));
 
             // Setup controls
             const playBtn = document.getElementById('riverPlayBtn');
@@ -1952,6 +2180,29 @@
 
             playBtn.addEventListener('click', toggleRiverAnimation);
             resetBtn.addEventListener('click', resetRiverAnimation);
+
+            // Keyboard controls for animation
+            document.addEventListener('keydown', (e) => {
+                // Ignore if user is typing in an input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    toggleRiverAnimation();
+                } else if (e.code === 'KeyR') {
+                    resetRiverAnimation();
+                } else if (e.code === 'ArrowRight' && !riverAnimating) {
+                    // Step forward 1 year when paused
+                    riverAge = Math.min(35, riverAge + 1);
+                    drawRiverFrame(riverAge);
+                    updateProgressiveStats(riverAge);
+                } else if (e.code === 'ArrowLeft' && !riverAnimating) {
+                    // Step backward 1 year when paused
+                    riverAge = Math.max(0, riverAge - 1);
+                    drawRiverFrame(riverAge);
+                    updateProgressiveStats(riverAge);
+                }
+            });
 
             // Auto-play after a short delay
             setTimeout(() => {
@@ -2057,7 +2308,7 @@
         }
 
         function drawRiverFrame(age) {
-            if (!riverCtx || !particleData) return;
+            if (!riverCtx || !particleData || !positionBufferX) return;
 
             const width = riverCanvas.width / window.devicePixelRatio;
             const height = riverCanvas.height / window.devicePixelRatio;
@@ -2080,36 +2331,27 @@
             const trailLength = Math.min(8, Math.max(3, Math.floor(age / 4)));
             const trailStep = 0.5;
 
-            // Color interpolation progress
-            const colorProgress = Math.min(1, age / 25);
-
-            // Pre-compute particle positions for batched drawing
-            const positions = new Array(particleData.particles.length);
             const particles = particleData.particles;
+            const numParticles = particles.length;
 
-            // First pass: compute all positions (no drawing yet)
-            for (let i = 0; i < particles.length; i++) {
-                const p = particles[i];
-                const y = interpolateParticleYFast(p.p, age);
-                positions[i] = {
-                    x: mainX,
-                    y: topMargin + (1 - y / 5) * drawHeight,
-                    startQ: p.s,
-                    endQ: p.e,
-                    special: p.r || p.f
-                };
+            // First pass: compute all positions into pre-allocated buffers (ZERO allocations)
+            for (let i = 0; i < numParticles; i++) {
+                const y = interpolateParticleYFast(particles[i].p, age);
+                positionBufferX[i] = mainX;
+                positionBufferY[i] = topMargin + (1 - y / 5) * drawHeight;
             }
 
             // Second pass: Draw trails (batched by quintile for fewer state changes)
             if (age > 0.5) {
                 riverCtx.globalAlpha = 0.15;
                 for (let q = 1; q <= 5; q++) {
-                    // Blend color based on progress
                     const color = quintileColors[q];
                     riverCtx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
                     riverCtx.beginPath();
 
-                    for (const idx of particlesByQuintile[q]) {
+                    const indices = particlesByQuintile[q];
+                    for (let j = 0; j < indices.length; j++) {
+                        const idx = indices[j];
                         const p = particles[idx];
                         // Draw simplified trail (fewer points)
                         for (let t = 1; t <= trailLength; t++) {
@@ -2128,16 +2370,17 @@
 
             // Third pass: Draw main particles (batched by ending quintile)
             for (let q = 1; q <= 5; q++) {
-                // Interpolate color for this quintile batch
-                const endColor = quintileColors[q];
                 riverCtx.fillStyle = quintileColorStrings[q];
                 riverCtx.beginPath();
 
-                for (const idx of particlesByQuintile[q]) {
-                    const pos = positions[idx];
-                    const size = pos.special ? 4 : 3;
-                    riverCtx.moveTo(pos.x + size, pos.y);
-                    riverCtx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+                const indices = particlesByQuintile[q];
+                for (let j = 0; j < indices.length; j++) {
+                    const idx = indices[j];
+                    const x = positionBufferX[idx];
+                    const y = positionBufferY[idx];
+                    const size = specialFlags[idx] ? 4 : 3;
+                    riverCtx.moveTo(x + size, y);
+                    riverCtx.arc(x, y, size, 0, Math.PI * 2);
                 }
                 riverCtx.fill();
             }
@@ -2146,12 +2389,14 @@
             if (age > 30) {
                 riverCtx.fillStyle = 'rgba(255,215,0,0.15)';
                 riverCtx.beginPath();
-                for (const idx of particlesByQuintile[5]) {
-                    const p = particles[idx];
-                    if (p.r) { // Rose from bottom to top
-                        const pos = positions[idx];
-                        riverCtx.moveTo(pos.x + 10, pos.y);
-                        riverCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                const q5Indices = particlesByQuintile[5];
+                for (let j = 0; j < q5Indices.length; j++) {
+                    const idx = q5Indices[j];
+                    if (particles[idx].r) { // Rose from bottom to top
+                        const x = positionBufferX[idx];
+                        const y = positionBufferY[idx];
+                        riverCtx.moveTo(x + 10, y);
+                        riverCtx.arc(x, y, 10, 0, Math.PI * 2);
                     }
                 }
                 riverCtx.fill();
@@ -2232,31 +2477,59 @@
             document.getElementById('fellPct').textContent = `(${fellPct}%)`;
         }
 
+        // Last stats update time for throttling
+        let lastStatsUpdate = 0;
+
         function updateProgressiveStats(age) {
             if (!particleData) return;
 
-            // Calculate progressive stats based on current particle positions
-            const ageIdx = particleData.meta.ages.findIndex(a => a >= age);
-            const pathIdx = Math.max(0, ageIdx > 0 ? ageIdx - 1 : 0);
+            // Get key ages for path indexing
+            const keyAges = particleData.meta.ages;
+            let pathIdx = keyAges.findIndex(a => a > age) - 1;
+            if (pathIdx < 0) pathIdx = 0;
+            const nextIdx = Math.min(pathIdx + 1, keyAges.length - 1);
+
+            // Calculate interpolation factor for smooth counting
+            const prevAge = keyAges[pathIdx];
+            const nextAge = keyAges[nextIdx];
+            const t = nextAge !== prevAge ? (age - prevAge) / (nextAge - prevAge) : 0;
 
             let rose = 0, fell = 0;
-            const q1Starters = particleData.particles.filter(p => p.s === 1);
-            const q5Starters = particleData.particles.filter(p => p.s === 5);
+            const particles = particleData.particles;
 
-            // Count those who have crossed thresholds
-            q1Starters.forEach(p => {
-                const currentY = p.p[pathIdx] ? p.p[pathIdx][1] : p.p[0][1];
-                if (currentY > 4.0) rose++; // Above Q5 threshold
-            });
+            // Progressive thresholds - loosen as animation progresses for earlier visibility
+            // This makes the numbers start climbing sooner instead of all at the end
+            const roseThreshold = Math.max(3.8, 4.5 - (age / 35) * 0.8);  // Starts 4.5, ends 3.7
+            const fellThreshold = Math.min(1.2, 0.5 + (age / 35) * 0.8);  // Starts 0.5, ends 1.3
 
-            q5Starters.forEach(p => {
-                const currentY = p.p[pathIdx] ? p.p[pathIdx][1] : p.p[p.p.length - 1][1];
-                if (currentY < 1.0) fell++; // Below Q1 threshold
-            });
+            // Count with interpolated positions for smooth updates
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
 
-            // Update display with current counts
-            document.getElementById('roseCount').textContent = rose;
-            document.getElementById('fellCount').textContent = fell;
+                // Get current Y position with interpolation
+                const y1 = p.p[pathIdx] ? p.p[pathIdx][1] : 0;
+                const y2 = p.p[nextIdx] ? p.p[nextIdx][1] : y1;
+                const currentY = y1 + (y2 - y1) * t;
+
+                // Rose: Q1 starters who are rising toward Q5
+                if (p.s === 1 && currentY >= roseThreshold) rose++;
+
+                // Fell: Q5 starters who are falling toward Q1
+                if (p.s === 5 && currentY <= fellThreshold) fell++;
+            }
+
+            // Smooth number transitions (avoid jarring jumps)
+            const roseEl = document.getElementById('roseCount');
+            const fellEl = document.getElementById('fellCount');
+            const currentRose = parseInt(roseEl.textContent) || 0;
+            const currentFell = parseInt(fellEl.textContent) || 0;
+
+            // Step toward target in increments to smooth the display
+            const roseStep = Math.ceil(Math.abs(rose - currentRose) / 4) * Math.sign(rose - currentRose);
+            const fellStep = Math.ceil(Math.abs(fell - currentFell) / 4) * Math.sign(fell - currentFell);
+
+            roseEl.textContent = currentRose + (roseStep || 0);
+            fellEl.textContent = currentFell + (fellStep || 0);
 
             // Show percentages
             const rosePct = ((rose / 1000) * 100).toFixed(1);
@@ -2270,7 +2543,8 @@
             try {
                 const res = await fetch('particles_optimized.json');
                 particleData = await res.json();
-                console.log('Loaded', particleData.meta.n, 'particles');
+                const numParticles = particleData.meta.n;
+                console.log('Loaded', numParticles, 'particles');
 
                 // Pre-compute age index lookup table for O(1) lookups
                 const keyAges = particleData.meta.ages;
@@ -2288,6 +2562,22 @@
                 particleData.particles.forEach((p, idx) => {
                     particlesByQuintile[p.e].push(idx);
                 });
+
+                // Pre-allocate position buffers (reused every frame - ZERO allocations in draw loop)
+                positionBufferX = new Float32Array(numParticles);
+                positionBufferY = new Float32Array(numParticles);
+                specialFlags = new Uint8Array(numParticles);
+                startQuintiles = new Uint8Array(numParticles);
+                endQuintiles = new Uint8Array(numParticles);
+
+                // Pre-extract particle properties into typed arrays
+                const particles = particleData.particles;
+                for (let i = 0; i < numParticles; i++) {
+                    const p = particles[i];
+                    specialFlags[i] = (p.r || p.f) ? 1 : 0;
+                    startQuintiles[i] = p.s;
+                    endQuintiles[i] = p.e;
+                }
 
                 initLifeRiver();
             } catch (err) {
