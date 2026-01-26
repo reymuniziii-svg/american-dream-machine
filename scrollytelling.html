@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The American Dream Machine | Does Your Zip Code Determine Your Destiny?</title>
+
+    <!-- OpenGraph -->
+    <meta property="og:title" content="The American Dream Machine">
+    <meta property="og:description" content="Does your zip code determine your destiny? Explore how childhood neighborhoods shape adult outcomes across 72,000 US neighborhoods.">
+    <meta property="og:type" content="website">
+
+    <!-- MapLibre GL JS -->
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+    <!-- deck.gl -->
+    <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
+
+    <!-- D3.js -->
+    <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+
+    <!-- Scrollama -->
+    <script src="https://unpkg.com/scrollama@3.2.0/build/scrollama.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Opportunity spectrum */
+            --high-mobility: #2EEB78;
+            --medium-mobility: #81B29A;
+            --low-mobility: #E07A5F;
+            --poverty-trap: #A3320B;
+
+            /* Demographics */
+            --white-demo: #3D5A80;
+            --black-demo: #E07A5F;
+            --hisp-demo: #F4A261;
+            --asian-demo: #2A9D8F;
+
+            /* Background */
+            --paper: #FAF8F5;
+            --ink: #2C2C2C;
+            --ink-light: #4a4a4a;
+
+            /* Accents */
+            --highlight: #FFD700;
+            --compare: #9B5DE5;
+
+            /* Typography scale */
+            --text-xs: 0.75rem;
+            --text-sm: 0.875rem;
+            --text-base: 1rem;
+            --text-lg: 1.125rem;
+            --text-xl: 1.25rem;
+            --text-2xl: 1.5rem;
+            --text-3xl: 2rem;
+            --text-4xl: 2.5rem;
+            --text-5xl: 3rem;
+            --text-6xl: 4rem;
+            --text-7xl: 5rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--ink);
+            background: var(--paper);
+            overflow-x: hidden;
+        }
+
+        /* Typography */
+        h1, h2, h3 {
+            font-family: 'EB Garamond', Georgia, serif;
+            font-weight: 400;
+            line-height: 1.2;
+        }
+
+        .mono {
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+            background: linear-gradient(180deg, var(--paper) 0%, #f0ede8 100%);
+            position: relative;
+        }
+
+        .hero__eyebrow {
+            font-size: var(--text-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--ink-light);
+            margin-bottom: 1rem;
+        }
+
+        .hero__title {
+            font-size: clamp(var(--text-4xl), 8vw, var(--text-7xl));
+            max-width: 900px;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .hero__subtitle {
+            font-size: var(--text-xl);
+            max-width: 600px;
+            color: var(--ink-light);
+            font-weight: 300;
+            margin-bottom: 3rem;
+        }
+
+        .hero__stats {
+            display: flex;
+            gap: 4rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 3rem;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat__number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-5xl);
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            color: var(--ink);
+        }
+
+        .hero-stat__label {
+            font-size: var(--text-sm);
+            color: var(--ink-light);
+            margin-top: 0.5rem;
+        }
+
+        .hero__scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--ink-light);
+            font-size: var(--text-sm);
+            animation: bounce 2s ease infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(8px); }
+        }
+
+        /* Scrollytelling Container */
+        .scroll-container {
+            position: relative;
+        }
+
+        .scroll-graphic {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .scroll-text {
+            position: relative;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .step {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 2rem;
+            pointer-events: auto;
+        }
+
+        .step:first-child {
+            margin-top: -100vh;
+        }
+
+        .step__content {
+            background: rgba(250, 248, 245, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 2rem 2.5rem;
+            border-radius: 8px;
+            max-width: 420px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .step.is-active .step__content {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .step__number {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-6xl);
+            font-weight: 200;
+            opacity: 0.1;
+            position: absolute;
+            top: -1.5rem;
+            left: -0.5rem;
+            line-height: 1;
+        }
+
+        .step__title {
+            font-size: var(--text-2xl);
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .step__body {
+            font-size: var(--text-base);
+            color: var(--ink-light);
+            line-height: 1.7;
+        }
+
+        .step__body strong {
+            color: var(--ink);
+            font-weight: 500;
+        }
+
+        .step__highlight {
+            font-family: 'EB Garamond', serif;
+            font-style: italic;
+            font-size: var(--text-lg);
+            color: var(--ink);
+            margin-top: 1rem;
+            padding-left: 1rem;
+            border-left: 3px solid var(--high-mobility);
+        }
+
+        /* Map Legend */
+        .map-legend {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(250, 248, 245, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            z-index: 10;
+            font-size: var(--text-sm);
+        }
+
+        .map-legend__title {
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+
+        .map-legend__scale {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .map-legend__gradient {
+            width: 120px;
+            height: 12px;
+            border-radius: 2px;
+            background: linear-gradient(to right, var(--poverty-trap), var(--low-mobility), var(--medium-mobility), var(--high-mobility));
+        }
+
+        .map-legend__labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--text-xs);
+            color: var(--ink-light);
+            margin-top: 0.25rem;
+        }
+
+        /* Demographic Toggle */
+        .demo-toggle {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(250, 248, 245, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 0.5rem;
+            border-radius: 50px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            z-index: 100;
+            display: none;
+            gap: 0.25rem;
+        }
+
+        .demo-toggle.visible {
+            display: flex;
+        }
+
+        .demo-toggle__btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: var(--text-sm);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--ink-light);
+        }
+
+        .demo-toggle__btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .demo-toggle__btn.active {
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        /* Explorer Section */
+        .explorer {
+            padding: 4rem 2rem;
+            background: var(--paper);
+        }
+
+        .explorer__header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 3rem;
+        }
+
+        .explorer__title {
+            font-size: var(--text-4xl);
+            margin-bottom: 1rem;
+        }
+
+        .explorer__subtitle {
+            font-size: var(--text-lg);
+            color: var(--ink-light);
+        }
+
+        .explorer__search {
+            display: flex;
+            gap: 1rem;
+            max-width: 500px;
+            margin: 0 auto 3rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .find-btn {
+            padding: 1rem 2rem;
+            background: var(--ink);
+            color: var(--paper);
+            border: none;
+            border-radius: 50px;
+            font-family: inherit;
+            font-size: var(--text-base);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .find-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .find-btn--pulse {
+            animation: pulse 2s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(44, 44, 44, 0.4); }
+            50% { box-shadow: 0 0 0 12px rgba(44, 44, 44, 0); }
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 1rem 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 50px;
+            font-family: inherit;
+            font-size: var(--text-base);
+            transition: border-color 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--ink);
+        }
+
+        /* County Card */
+        .county-card {
+            display: none;
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .county-card.visible {
+            display: block;
+        }
+
+        .county-card__header {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f8f7f4 0%, #f0ede8 100%);
+        }
+
+        .county-card__mini-map {
+            width: 200px;
+            height: 120px;
+            background: #e8e5e0;
+            border-radius: 8px;
+        }
+
+        .county-card__info h3 {
+            font-size: var(--text-2xl);
+            margin-bottom: 0.5rem;
+        }
+
+        .county-card__location {
+            color: var(--ink-light);
+            margin-bottom: 1rem;
+        }
+
+        .county-card__score {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .county-card__score-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-4xl);
+            font-weight: 300;
+        }
+
+        .county-card__score-label {
+            color: var(--ink-light);
+        }
+
+        .county-card__percentile {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--high-mobility);
+            color: white;
+            border-radius: 50px;
+            font-size: var(--text-sm);
+            margin-top: 0.5rem;
+        }
+
+        .county-card__percentile.low {
+            background: var(--low-mobility);
+        }
+
+        .county-card__story {
+            padding: 2rem;
+            font-size: var(--text-lg);
+            line-height: 1.8;
+            border-bottom: 1px solid #eee;
+        }
+
+        .county-card__metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric__value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-3xl);
+            font-weight: 300;
+        }
+
+        .metric__label {
+            font-size: var(--text-sm);
+            color: var(--ink-light);
+            margin-top: 0.25rem;
+        }
+
+        /* Demographics Panel */
+        .county-card__demographics {
+            padding: 2rem;
+            background: #fafafa;
+        }
+
+        .county-card__demographics h4 {
+            font-size: var(--text-lg);
+            margin-bottom: 1rem;
+        }
+
+        .demo-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .demo-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .demo-bar__label {
+            width: 80px;
+            font-size: var(--text-sm);
+        }
+
+        .demo-bar__track {
+            flex: 1;
+            height: 24px;
+            background: #e8e5e0;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-bar__fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        .demo-bar__value {
+            width: 60px;
+            text-align: right;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: var(--text-sm);
+        }
+
+        /* Footer */
+        footer {
+            padding: 3rem 2rem;
+            text-align: center;
+            background: var(--ink);
+            color: var(--paper);
+        }
+
+        footer a {
+            color: var(--high-mobility);
+        }
+
+        /* Progress Dots */
+        .progress-dots {
+            position: fixed;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 100;
+        }
+
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(44, 44, 44, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot:hover {
+            background: rgba(44, 44, 44, 0.4);
+            transform: scale(1.2);
+        }
+
+        .progress-dot.active {
+            background: var(--ink);
+            transform: scale(1.3);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            padding: 0.75rem 1rem;
+            background: var(--ink);
+            color: var(--paper);
+            border-radius: 6px;
+            font-size: var(--text-sm);
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            max-width: 280px;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip__title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .tooltip__value {
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--paper);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading__spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top-color: var(--ink);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading__text {
+            margin-top: 1rem;
+            color: var(--ink-light);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .hero__stats {
+                gap: 2rem;
+            }
+
+            .hero-stat__number {
+                font-size: var(--text-4xl);
+            }
+
+            .step__content {
+                max-width: 100%;
+                margin: 0 1rem;
+            }
+
+            .map-legend {
+                bottom: auto;
+                top: auto;
+                right: 1rem;
+                left: 1rem;
+                bottom: 1rem;
+            }
+
+            .progress-dots {
+                display: none;
+            }
+
+            .county-card__header {
+                grid-template-columns: 1fr;
+            }
+
+            .county-card__mini-map {
+                width: 100%;
+            }
+
+            .demo-toggle {
+                top: auto;
+                bottom: 5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading" id="loading">
+        <div class="loading__spinner"></div>
+        <div class="loading__text">Loading mobility data...</div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero__eyebrow">An Interactive Data Story</div>
+        <h1 class="hero__title">Does Your Zip Code Determine Your Destiny?</h1>
+        <p class="hero__subtitle">Explore how childhood neighborhoods shape adult outcomes across 72,000 US neighborhoods.</p>
+
+        <div class="hero__stats">
+            <div class="hero-stat">
+                <div class="hero-stat__number" id="stat-tracts">0</div>
+                <div class="hero-stat__label">Neighborhoods Analyzed</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat__number" id="stat-children">0</div>
+                <div class="hero-stat__label">Children Tracked</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat__number" id="stat-gap">0%</div>
+                <div class="hero-stat__label">Mobility Gap</div>
+            </div>
+        </div>
+
+        <div class="hero__scroll-hint">
+            <span>Scroll to explore</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Demographic Toggle (appears during relevant steps) -->
+    <div class="demo-toggle" id="demoToggle">
+        <button class="demo-toggle__btn active" data-demo="pooled">All</button>
+        <button class="demo-toggle__btn" data-demo="white">White</button>
+        <button class="demo-toggle__btn" data-demo="black">Black</button>
+        <button class="demo-toggle__btn" data-demo="hisp">Hispanic</button>
+    </div>
+
+    <!-- Scrollytelling Section -->
+    <section class="scroll-container">
+        <div class="scroll-graphic">
+            <div id="map"></div>
+
+            <!-- Map Legend -->
+            <div class="map-legend" id="mapLegend">
+                <div class="map-legend__title">Economic Mobility Score</div>
+                <div class="map-legend__scale">
+                    <span>Low</span>
+                    <div class="map-legend__gradient"></div>
+                    <span>High</span>
+                </div>
+                <div class="map-legend__labels">
+                    <span>25th %ile</span>
+                    <span>75th %ile</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-text">
+            <!-- Step 1: The Promise -->
+            <div class="step" data-step="1">
+                <div class="step__content">
+                    <span class="step__number">01</span>
+                    <h2 class="step__title">The American Dream</h2>
+                    <p class="step__body">
+                        In America, we believe anyone can make it. Work hard, play by the rules,
+                        and you can climb the economic ladder—no matter where you start.
+                    </p>
+                    <p class="step__highlight">
+                        But what if where you're born matters more than how hard you try?
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 2: The Map Reveals -->
+            <div class="step" data-step="2">
+                <div class="step__content">
+                    <span class="step__number">02</span>
+                    <h2 class="step__title">The Opportunity Map</h2>
+                    <p class="step__body">
+                        This map shows <strong>economic mobility</strong>—how well children from
+                        low-income families do as adults. <strong>Green</strong> areas help kids
+                        climb; <strong>red</strong> areas trap them.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        The data tracks <strong>20 million children</strong> from birth to age 35.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 3: The Rural Surprise -->
+            <div class="step" data-step="3">
+                <div class="step__content">
+                    <span class="step__number">03</span>
+                    <h2 class="step__title">The Rural Advantage</h2>
+                    <p class="step__body">
+                        Surprisingly, the <strong>highest mobility</strong> is in rural areas of the
+                        Great Plains—North Dakota, South Dakota, Nebraska.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        Kids from poor families in these areas reach the <strong>65th percentile</strong>
+                        on average—well into the middle class.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 4: The Urban Challenge -->
+            <div class="step" data-step="4">
+                <div class="step__content">
+                    <span class="step__number">04</span>
+                    <h2 class="step__title">The Urban Challenge</h2>
+                    <p class="step__body">
+                        Major cities show a <strong>different story</strong>. In parts of Atlanta,
+                        Chicago, and Charlotte, kids from poor families stay poor.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        Many reach only the <strong>30th percentile</strong>—barely above where
+                        they started.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 5: Same City, Different Worlds -->
+            <div class="step" data-step="5">
+                <div class="step__content">
+                    <span class="step__number">05</span>
+                    <h2 class="step__title">Same City, Different Worlds</h2>
+                    <p class="step__body">
+                        The real story is <strong>hyperlocal</strong>. Within the same city,
+                        neighborhoods just miles apart have wildly different outcomes.
+                    </p>
+                    <p class="step__highlight">
+                        A child's future can change dramatically based on which side of a
+                        street they grow up on.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 6: The Demographic Divide -->
+            <div class="step" data-step="6">
+                <div class="step__content">
+                    <span class="step__number">06</span>
+                    <h2 class="step__title">The Hidden Divide</h2>
+                    <p class="step__body">
+                        Click the toggles above to see how outcomes differ by
+                        <strong>race and ethnicity</strong>.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        The same neighborhood can be <strong>high-mobility for White children</strong>
+                        and <strong>low-mobility for Black children</strong>.
+                    </p>
+                    <p class="step__highlight">
+                        Place matters—but it matters differently depending on who you are.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 7: Find Your Neighborhood -->
+            <div class="step" data-step="7">
+                <div class="step__content">
+                    <span class="step__number">07</span>
+                    <h2 class="step__title">Find Your Neighborhood</h2>
+                    <p class="step__body">
+                        Scroll down to <strong>explore your own neighborhood</strong>.
+                        See how it compares to the national average.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        What opportunities did your childhood zip code provide—or deny?
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 8: The Question -->
+            <div class="step" data-step="8">
+                <div class="step__content">
+                    <span class="step__number">08</span>
+                    <h2 class="step__title">The Question</h2>
+                    <p class="step__body">
+                        These patterns aren't destiny. Research shows that <strong>moving
+                        children to higher-opportunity areas</strong> improves their outcomes.
+                    </p>
+                    <p class="step__highlight">
+                        Every year a child spends in a high-mobility neighborhood adds to
+                        their lifetime earnings.
+                    </p>
+                    <p class="step__body" style="margin-top: 1rem;">
+                        The question is: what will we do about it?
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress Dots -->
+    <div class="progress-dots" id="progressDots">
+        <div class="progress-dot active" data-step="1"></div>
+        <div class="progress-dot" data-step="2"></div>
+        <div class="progress-dot" data-step="3"></div>
+        <div class="progress-dot" data-step="4"></div>
+        <div class="progress-dot" data-step="5"></div>
+        <div class="progress-dot" data-step="6"></div>
+        <div class="progress-dot" data-step="7"></div>
+        <div class="progress-dot" data-step="8"></div>
+    </div>
+
+    <!-- Explorer Section -->
+    <section class="explorer" id="explorer">
+        <div class="explorer__header">
+            <h2 class="explorer__title">Find Your Neighborhood</h2>
+            <p class="explorer__subtitle">
+                Discover the mobility score for any US neighborhood and see how it compares.
+            </p>
+        </div>
+
+        <div class="explorer__search">
+            <button class="find-btn find-btn--pulse" id="findBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Find My Neighborhood
+            </button>
+            <input type="text" class="search-input" id="searchInput" placeholder="Or enter a city, state, or zip code...">
+        </div>
+
+        <!-- County Card (hidden until selection) -->
+        <div class="county-card" id="countyCard">
+            <div class="county-card__header">
+                <svg class="county-card__mini-map" id="miniMap" viewBox="0 0 200 120"></svg>
+                <div class="county-card__info">
+                    <h3 id="countyName">Maricopa County</h3>
+                    <div class="county-card__location" id="countyLocation">Arizona</div>
+                    <div class="county-card__score">
+                        <span class="county-card__score-value" id="countyScore">0.45</span>
+                        <span class="county-card__score-label">mobility score</span>
+                    </div>
+                    <div class="county-card__percentile" id="countyPercentile">Top 35% of US</div>
+                </div>
+            </div>
+
+            <div class="county-card__story" id="countyStory">
+                Children who grew up in low-income families in this area reach the 45th
+                percentile on average by age 35—slightly above the national median.
+            </div>
+
+            <div class="county-card__metrics">
+                <div class="metric">
+                    <div class="metric__value" id="metricIncome">$42K</div>
+                    <div class="metric__label">Avg. Income at 35</div>
+                </div>
+                <div class="metric">
+                    <div class="metric__value" id="metricCollege">31%</div>
+                    <div class="metric__label">College Attendance</div>
+                </div>
+                <div class="metric">
+                    <div class="metric__value" id="metricJail">2.1%</div>
+                    <div class="metric__label">Incarceration Rate</div>
+                </div>
+            </div>
+
+            <div class="county-card__demographics">
+                <h4>Outcomes by Race</h4>
+                <div class="demo-bars">
+                    <div class="demo-bar">
+                        <span class="demo-bar__label">White</span>
+                        <div class="demo-bar__track">
+                            <div class="demo-bar__fill" id="barWhite" style="width: 50%; background: var(--white-demo);"></div>
+                        </div>
+                        <span class="demo-bar__value" id="valWhite">0.48</span>
+                    </div>
+                    <div class="demo-bar">
+                        <span class="demo-bar__label">Black</span>
+                        <div class="demo-bar__track">
+                            <div class="demo-bar__fill" id="barBlack" style="width: 35%; background: var(--black-demo);"></div>
+                        </div>
+                        <span class="demo-bar__value" id="valBlack">0.35</span>
+                    </div>
+                    <div class="demo-bar">
+                        <span class="demo-bar__label">Hispanic</span>
+                        <div class="demo-bar__track">
+                            <div class="demo-bar__fill" id="barHisp" style="width: 42%; background: var(--hisp-demo);"></div>
+                        </div>
+                        <span class="demo-bar__value" id="valHisp">0.42</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>
+            Data: <a href="https://opportunityinsights.org/data/" target="_blank">Opportunity Atlas</a>
+            (Census Bureau + Opportunity Insights) |
+            Visualization: <a href="https://github.com/reymuniziii-svg" target="_blank">Rey Muniz</a>
+        </p>
+        <p style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.875rem;">
+            Tracking 20 million children from birth (1978-1983) to age 35
+        </p>
+    </footer>
+
+    <script>
+        // ========================================
+        // THE AMERICAN DREAM MACHINE
+        // Interactive Mobility Visualization
+        // ========================================
+
+        // State
+        let countyData = [];
+        let tractData = {};
+        let summaryStats = {};
+        let countiesGeoJson = null;
+        let map = null;
+        let deckOverlay = null;
+        let currentStep = 1;
+        let currentDemo = 'pooled';
+        let selectedCounty = null;
+
+        // Map view states for each step
+        const stepViews = {
+            1: { center: [-98, 38], zoom: 3.5, pitch: 0 },
+            2: { center: [-98, 38], zoom: 3.8, pitch: 0 },
+            3: { center: [-100, 46], zoom: 5, pitch: 0 },  // Dakotas
+            4: { center: [-84, 34], zoom: 5.5, pitch: 0 }, // Southeast
+            5: { center: [-87.6, 41.9], zoom: 9, pitch: 45 }, // Chicago
+            6: { center: [-98, 38], zoom: 3.8, pitch: 0 },
+            7: { center: [-98, 38], zoom: 3.8, pitch: 0 },
+            8: { center: [-98, 38], zoom: 3.5, pitch: 0 }
+        };
+
+        // Color scale for mobility (kfr values typically 0.25-0.65)
+        function getMobilityColor(kfr, alpha = 180) {
+            if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
+
+            // Normalize to 0-1 range (kfr typically 0.25 to 0.65)
+            const normalized = Math.max(0, Math.min(1, (kfr - 0.25) / 0.4));
+
+            // Color interpolation: rust -> terra cotta -> sage -> emerald
+            if (normalized < 0.33) {
+                const t = normalized / 0.33;
+                return [
+                    163 + (224 - 163) * t,  // R: rust to terra cotta
+                    50 + (122 - 50) * t,    // G
+                    11 + (95 - 11) * t,     // B
+                    alpha
+                ];
+            } else if (normalized < 0.66) {
+                const t = (normalized - 0.33) / 0.33;
+                return [
+                    224 + (129 - 224) * t,  // R: terra cotta to sage
+                    122 + (178 - 122) * t,  // G
+                    95 + (154 - 95) * t,    // B
+                    alpha
+                ];
+            } else {
+                const t = (normalized - 0.66) / 0.34;
+                return [
+                    129 + (46 - 129) * t,   // R: sage to emerald
+                    178 + (235 - 178) * t,  // G
+                    154 + (120 - 154) * t,  // B
+                    alpha
+                ];
+            }
+        }
+
+        // Animate counter
+        function animateCounter(element, target, duration = 1500, prefix = '', suffix = '') {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                const current = Math.round(start + (target - start) * eased);
+                element.textContent = prefix + current.toLocaleString() + suffix;
+
+                if (progress < 1) requestAnimationFrame(update);
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Create GeoJSON layer for choropleth
+        function createChoroplethLayer(demo = 'pooled') {
+            if (!countiesGeoJson) return null;
+
+            const kfrKey = demo === 'pooled' ? 'kfr' : `kfr_${demo[0]}`;
+
+            // Join county data with geometry
+            const dataMap = new Map(countyData.map(d => [d.fips, d]));
+
+            return new deck.GeoJsonLayer({
+                id: 'county-choropleth',
+                data: countiesGeoJson,
+                getFillColor: f => {
+                    const fips = f.properties.GEOID || f.properties.fips;
+                    const county = dataMap.get(fips);
+                    if (!county) return [200, 200, 200, 100];
+
+                    const kfr = demo === 'pooled' ? county.kfr : county[kfrKey];
+                    return getMobilityColor(kfr);
+                },
+                getLineColor: [255, 255, 255, 80],
+                lineWidthMinPixels: 0.5,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 255, 255, 100],
+                onHover: info => {
+                    if (info.object) {
+                        const fips = info.object.properties.GEOID || info.object.properties.fips;
+                        const county = dataMap.get(fips);
+                        if (county) {
+                            showTooltip(info.x, info.y, county);
+                        }
+                    } else {
+                        hideTooltip();
+                    }
+                },
+                onClick: info => {
+                    if (info.object) {
+                        const fips = info.object.properties.GEOID || info.object.properties.fips;
+                        const county = dataMap.get(fips);
+                        if (county) {
+                            selectCounty(county);
+                        }
+                    }
+                },
+                updateTriggers: {
+                    getFillColor: [demo]
+                },
+                transitions: {
+                    getFillColor: 800
+                }
+            });
+        }
+
+        // Tooltip functions
+        function showTooltip(x, y, county) {
+            const tooltip = document.getElementById('tooltip');
+            const kfr = county.kfr || 0;
+            const pct = county.kfr_pct || 0;
+
+            tooltip.innerHTML = `
+                <div class="tooltip__title">${county.name || 'Unknown'}</div>
+                <div class="tooltip__value">Mobility: ${(kfr * 100).toFixed(0)}th percentile</div>
+                <div>Top ${Math.round(100 - pct)}% of US</div>
+            `;
+            tooltip.style.left = (x + 15) + 'px';
+            tooltip.style.top = (y + 15) + 'px';
+            tooltip.classList.add('visible');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('visible');
+        }
+
+        // Select county and show details
+        function selectCounty(county) {
+            selectedCounty = county;
+
+            // Show county card
+            const card = document.getElementById('countyCard');
+            card.classList.add('visible');
+
+            // Update card content
+            document.getElementById('countyName').textContent = county.name || 'Unknown Area';
+            document.getElementById('countyLocation').textContent = county.state || '';
+
+            const kfr = county.kfr || 0;
+            document.getElementById('countyScore').textContent = kfr.toFixed(2);
+
+            const pctEl = document.getElementById('countyPercentile');
+            const pct = county.kfr_pct || 50;
+            pctEl.textContent = `Top ${Math.round(100 - pct)}% of US`;
+            pctEl.className = 'county-card__percentile' + (pct < 50 ? ' low' : '');
+
+            // Generate story
+            const income = Math.round(kfr * 80000 + 15000);
+            const incomeStr = '$' + Math.round(income / 1000) + 'K';
+            document.getElementById('metricIncome').textContent = incomeStr;
+
+            const jail = county.jail || 0.02;
+            document.getElementById('metricJail').textContent = (jail * 100).toFixed(1) + '%';
+
+            // Story text
+            const storyEl = document.getElementById('countyStory');
+            if (kfr > 0.5) {
+                storyEl.textContent = `Children who grew up in low-income families here reach the ${Math.round(kfr * 100)}th percentile on average by age 35—significantly above the national median. This is a high-opportunity area.`;
+            } else if (kfr > 0.4) {
+                storyEl.textContent = `Children who grew up in low-income families here reach the ${Math.round(kfr * 100)}th percentile on average by age 35—close to the national median.`;
+            } else {
+                storyEl.textContent = `Children who grew up in low-income families here reach only the ${Math.round(kfr * 100)}th percentile on average by age 35—below the national median. Economic mobility is limited in this area.`;
+            }
+
+            // Demographics
+            const kfrW = county.kfr_w || kfr;
+            const kfrB = county.kfr_b || kfr;
+            const kfrH = county.kfr_h || kfr;
+
+            document.getElementById('barWhite').style.width = `${kfrW * 100}%`;
+            document.getElementById('valWhite').textContent = kfrW.toFixed(2);
+            document.getElementById('barBlack').style.width = `${kfrB * 100}%`;
+            document.getElementById('valBlack').textContent = kfrB ? kfrB.toFixed(2) : 'N/A';
+            document.getElementById('barHisp').style.width = `${kfrH * 100}%`;
+            document.getElementById('valHisp').textContent = kfrH ? kfrH.toFixed(2) : 'N/A';
+
+            // Scroll to explorer section
+            document.getElementById('explorer').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Update map for step
+        function updateMapForStep(step) {
+            currentStep = step;
+
+            // Update progress dots
+            document.querySelectorAll('.progress-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i + 1 === step);
+            });
+
+            // Show/hide demo toggle (only on step 6)
+            const demoToggle = document.getElementById('demoToggle');
+            demoToggle.classList.toggle('visible', step === 6);
+
+            // Get view for this step
+            const view = stepViews[step] || stepViews[1];
+
+            // Fly to new view
+            if (map) {
+                map.flyTo({
+                    center: view.center,
+                    zoom: view.zoom,
+                    pitch: view.pitch,
+                    duration: 1500,
+                    essential: true
+                });
+            }
+        }
+
+        // Initialize Scrollama
+        function initScrollama() {
+            const scroller = scrollama();
+
+            scroller
+                .setup({
+                    step: '.step',
+                    offset: 0.5,
+                    progress: false
+                })
+                .onStepEnter(response => {
+                    const step = parseInt(response.element.dataset.step);
+
+                    // Mark step as active
+                    document.querySelectorAll('.step').forEach(s => s.classList.remove('is-active'));
+                    response.element.classList.add('is-active');
+
+                    updateMapForStep(step);
+                })
+                .onStepExit(response => {
+                    // Keep the step visible while exiting
+                });
+
+            // Handle window resize
+            window.addEventListener('resize', scroller.resize);
+        }
+
+        // Initialize map
+        function initMap() {
+            map = new maplibregl.Map({
+                container: 'map',
+                style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+                center: [-98, 38],
+                zoom: 3.5,
+                maxBounds: [[-130, 20], [-60, 52]],
+                attributionControl: false
+            });
+
+            map.on('load', () => {
+                // Initialize deck.gl overlay
+                deckOverlay = new deck.MapboxOverlay({
+                    interleaved: false,
+                    layers: []
+                });
+                map.addControl(deckOverlay);
+
+                // Add choropleth layer
+                updateLayers();
+            });
+
+            // Navigation controls
+            map.addControl(new maplibregl.NavigationControl(), 'top-left');
+        }
+
+        // Update deck.gl layers
+        function updateLayers() {
+            if (!deckOverlay) return;
+
+            const layers = [
+                createChoroplethLayer(currentDemo)
+            ].filter(Boolean);
+
+            deckOverlay.setProps({ layers });
+        }
+
+        // Demo toggle handler
+        function setupDemoToggle() {
+            document.querySelectorAll('.demo-toggle__btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Update active state
+                    document.querySelectorAll('.demo-toggle__btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    // Update map
+                    currentDemo = btn.dataset.demo;
+                    updateLayers();
+                });
+            });
+        }
+
+        // Progress dots click handler
+        function setupProgressDots() {
+            document.querySelectorAll('.progress-dot').forEach(dot => {
+                dot.addEventListener('click', () => {
+                    const step = parseInt(dot.dataset.step);
+                    const stepEl = document.querySelector(`.step[data-step="${step}"]`);
+                    if (stepEl) {
+                        stepEl.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+        }
+
+        // Geolocation finder
+        function setupGeolocation() {
+            const findBtn = document.getElementById('findBtn');
+            findBtn.addEventListener('click', async () => {
+                findBtn.classList.remove('find-btn--pulse');
+                findBtn.textContent = 'Finding...';
+
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000
+                        });
+                    });
+
+                    const { latitude, longitude } = pos.coords;
+
+                    // Find nearest county (simple approach - find closest centroid)
+                    // In production, would use point-in-polygon
+                    let nearestCounty = null;
+                    let minDist = Infinity;
+
+                    countyData.forEach(county => {
+                        // Very rough approximation - would need actual centroids
+                        const stateLon = -98; // Default
+                        const stateLat = 38;
+                        const dist = Math.abs(longitude - stateLon) + Math.abs(latitude - stateLat);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            nearestCounty = county;
+                        }
+                    });
+
+                    if (nearestCounty) {
+                        selectCounty(nearestCounty);
+                    }
+
+                    findBtn.innerHTML = `
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Find My Neighborhood
+                    `;
+                } catch (err) {
+                    console.error('Geolocation error:', err);
+                    findBtn.textContent = 'Location unavailable';
+                    setTimeout(() => {
+                        findBtn.innerHTML = `
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            Find My Neighborhood
+                        `;
+                    }, 2000);
+                }
+            });
+        }
+
+        // Search functionality
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+
+            searchInput.addEventListener('input', debounce((e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (query.length < 2) return;
+
+                // Find matching counties
+                const matches = countyData.filter(c =>
+                    (c.name && c.name.toLowerCase().includes(query)) ||
+                    (c.state && c.state.toLowerCase().includes(query))
+                ).slice(0, 5);
+
+                if (matches.length > 0) {
+                    selectCounty(matches[0]);
+                }
+            }, 300));
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const query = e.target.value.toLowerCase().trim();
+                    const matches = countyData.filter(c =>
+                        (c.name && c.name.toLowerCase().includes(query)) ||
+                        (c.state && c.state.toLowerCase().includes(query))
+                    );
+                    if (matches.length > 0) {
+                        selectCounty(matches[0]);
+                    }
+                }
+            });
+        }
+
+        // Debounce helper
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Load all data
+        async function loadData() {
+            try {
+                // Load county mobility data
+                const countyRes = await fetch('county_mobility.json');
+                countyData = await countyRes.json();
+                console.log('Loaded', countyData.length, 'counties');
+
+                // Load summary stats
+                const summaryRes = await fetch('summary.json');
+                summaryStats = await summaryRes.json();
+
+                // Load county geometries
+                const geoRes = await fetch('us-counties.json');
+                countiesGeoJson = await geoRes.json();
+                console.log('Loaded county geometries');
+
+                // Animate hero stats
+                animateCounter(document.getElementById('stat-tracts'), 72014);
+                animateCounter(document.getElementById('stat-children'), 20, 1500, '', 'M');
+                animateCounter(document.getElementById('stat-gap'), 45, 1500, '', '%');
+
+                // Hide loading screen
+                document.getElementById('loading').classList.add('hidden');
+
+                // Initialize map and scrollytelling
+                initMap();
+                initScrollama();
+                setupDemoToggle();
+                setupProgressDots();
+                setupGeolocation();
+                setupSearch();
+
+            } catch (err) {
+                console.error('Error loading data:', err);
+                document.getElementById('loading').innerHTML = `
+                    <div style="color: red;">Error loading data: ${err.message}</div>
+                    <div style="margin-top: 1rem;">Make sure to run via HTTP server (python3 -m http.server)</div>
+                `;
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                const nextStep = Math.min(currentStep + 1, 8);
+                const stepEl = document.querySelector(`.step[data-step="${nextStep}"]`);
+                if (stepEl) stepEl.scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                const prevStep = Math.max(currentStep - 1, 1);
+                const stepEl = document.querySelector(`.step[data-step="${prevStep}"]`);
+                if (stepEl) stepEl.scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key >= '1' && e.key <= '8') {
+                const step = parseInt(e.key);
+                const stepEl = document.querySelector(`.step[data-step="${step}"]`);
+                if (stepEl) stepEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        // Start the application
+        loadData();
+    </script>
+</body>
+</html>

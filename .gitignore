@@ -1,0 +1,10 @@
+# Raw data files (too large for GitHub)
+tract_outcomes_simple.csv
+tract_covariates.csv
+tract_lookup.json
+
+# Processing script (not needed for web)
+process_data.py
+
+# OS files
+.DS_Store

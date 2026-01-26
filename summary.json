@@ -1,0 +1,258 @@
+{
+  "total_tracts": 72014,
+  "total_counties": 3171,
+  "kfr_median": 0.42520939,
+  "kfr_mean": 0.42858641521499985,
+  "kfr_min": -0.032856863,
+  "kfr_max": 1.0334886,
+  "kfr_p10": 0.33932075,
+  "kfr_p25": 0.38070184,
+  "kfr_p75": 0.47351021,
+  "kfr_p90": 0.52232677,
+  "jail_median": 0.0180377745,
+  "jail_mean": 0.02160090236212422,
+  "top_counties": [
+    {
+      "fips": "46063",
+      "name": "Ekalaka",
+      "state": "South Dakota",
+      "kfr": 0.689
+    },
+    {
+      "fips": "38011",
+      "name": "Bowman",
+      "state": "North Dakota",
+      "kfr": 0.678
+    },
+    {
+      "fips": "38007",
+      "name": "Dickinson",
+      "state": "North Dakota",
+      "kfr": 0.672
+    },
+    {
+      "fips": "38037",
+      "name": "East Grant UT",
+      "state": "North Dakota",
+      "kfr": 0.665
+    },
+    {
+      "fips": "30109",
+      "name": "Glendive",
+      "state": "Montana",
+      "kfr": 0.658
+    },
+    {
+      "fips": "38033",
+      "name": "Glendive",
+      "state": "North Dakota",
+      "kfr": 0.657
+    },
+    {
+      "fips": "38025",
+      "name": "Dickinson",
+      "state": "North Dakota",
+      "kfr": 0.651
+    },
+    {
+      "fips": "46021",
+      "name": "Mobridge",
+      "state": "South Dakota",
+      "kfr": 0.641
+    },
+    {
+      "fips": "31009",
+      "name": "Broken Bow",
+      "state": "Nebraska",
+      "kfr": 0.64
+    },
+    {
+      "fips": "38045",
+      "name": "Jamestown",
+      "state": "North Dakota",
+      "kfr": 0.64
+    },
+    {
+      "fips": "38087",
+      "name": "Bowman",
+      "state": "North Dakota",
+      "kfr": 0.639
+    },
+    {
+      "fips": "38065",
+      "name": "Bismarck",
+      "state": "North Dakota",
+      "kfr": 0.636
+    },
+    {
+      "fips": "46045",
+      "name": "Aberdeen",
+      "state": "South Dakota",
+      "kfr": 0.636
+    },
+    {
+      "fips": "31115",
+      "name": "Ord",
+      "state": "Nebraska",
+      "kfr": 0.633
+    },
+    {
+      "fips": "38089",
+      "name": "Dickinson",
+      "state": "North Dakota",
+      "kfr": 0.631
+    },
+    {
+      "fips": "31063",
+      "name": "Lexington",
+      "state": "Nebraska",
+      "kfr": 0.627
+    },
+    {
+      "fips": "46119",
+      "name": "Pierre",
+      "state": "South Dakota",
+      "kfr": 0.625
+    },
+    {
+      "fips": "38041",
+      "name": "Lemmon",
+      "state": "North Dakota",
+      "kfr": 0.623
+    },
+    {
+      "fips": "38047",
+      "name": "Linton",
+      "state": "North Dakota",
+      "kfr": 0.622
+    },
+    {
+      "fips": "46043",
+      "name": "Parkston",
+      "state": "South Dakota",
+      "kfr": 0.621
+    }
+  ],
+  "bottom_counties": [
+    {
+      "fips": "51690",
+      "name": "Martinsville",
+      "state": "Virginia",
+      "kfr": 0.31
+    },
+    {
+      "fips": "37165",
+      "name": "Fayetteville",
+      "state": "North Carolina",
+      "kfr": 0.31
+    },
+    {
+      "fips": "13095",
+      "name": "Albany",
+      "state": "Georgia",
+      "kfr": 0.308
+    },
+    {
+      "fips": "12039",
+      "name": "Tallahassee",
+      "state": "Florida",
+      "kfr": 0.307
+    },
+    {
+      "fips": "02070",
+      "name": "Dillingham",
+      "state": "Alaska",
+      "kfr": 0.307
+    },
+    {
+      "fips": "51730",
+      "name": "Richmond",
+      "state": "Virginia",
+      "kfr": 0.307
+    },
+    {
+      "fips": "02164",
+      "name": "Dillingham",
+      "state": "Alaska",
+      "kfr": 0.305
+    },
+    {
+      "fips": "08079",
+      "name": "Alamosa",
+      "state": "Colorado",
+      "kfr": 0.303
+    },
+    {
+      "fips": "51760",
+      "name": "Richmond",
+      "state": "Virginia",
+      "kfr": 0.301
+    },
+    {
+      "fips": "30035",
+      "name": "Shelby",
+      "state": "Montana",
+      "kfr": 0.3
+    },
+    {
+      "fips": "46121",
+      "name": "Mission",
+      "state": "South Dakota",
+      "kfr": 0.297
+    },
+    {
+      "fips": "28143",
+      "name": "Memphis",
+      "state": "Mississippi",
+      "kfr": 0.296
+    },
+    {
+      "fips": "02198",
+      "name": "Ketchikan",
+      "state": "Alaska",
+      "kfr": 0.293
+    },
+    {
+      "fips": "55078",
+      "name": "Shawano",
+      "state": "Wisconsin",
+      "kfr": 0.28
+    },
+    {
+      "fips": "02290",
+      "name": "Fairbanks",
+      "state": "Alaska",
+      "kfr": 0.277
+    },
+    {
+      "fips": "38085",
+      "name": "East Corson UT",
+      "state": "North Dakota",
+      "kfr": 0.273
+    },
+    {
+      "fips": "02188",
+      "name": "Kotzebue",
+      "state": "Alaska",
+      "kfr": 0.269
+    },
+    {
+      "fips": "02050",
+      "name": "Bethel",
+      "state": "Alaska",
+      "kfr": 0.246
+    },
+    {
+      "fips": "02180",
+      "name": "Nome",
+      "state": "Alaska",
+      "kfr": 0.243
+    },
+    {
+      "fips": "02105",
+      "name": "Juneau",
+      "state": "Alaska",
+      "kfr": 0.236
+    }
+  ]
+}
