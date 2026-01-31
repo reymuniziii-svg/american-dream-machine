@@ -309,9 +309,13 @@
 
         .life-river__stats {
             position: absolute;
-            bottom: 10rem;
-            left: 2rem;
-            text-align: left;
+            top: 7.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 3rem;
+            text-align: center;
+            align-items: flex-start;
             z-index: 20;
         }
 
@@ -328,7 +332,8 @@
         }
 
         .river-stat {
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
+            min-width: 220px;
         }
 
         .river-stat__number {
@@ -411,8 +416,12 @@
             }
 
             .life-river__stats {
-                bottom: 8rem;
-                left: 1rem;
+                top: 7rem;
+                left: 50%;
+                transform: translateX(-50%);
+                flex-direction: column;
+                gap: 1.25rem;
+                align-items: center;
             }
 
             .life-river__stats .river-stat__number {
@@ -484,6 +493,7 @@
             opacity: 0;
             transform: translateY(30px);
             transition: opacity 0.6s ease, transform 0.6s ease;
+            will-change: transform, opacity;
         }
 
         .step.is-active .step__content {
@@ -1019,6 +1029,13 @@
             .demo-toggle {
                 top: auto;
                 bottom: 5rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .step__content {
+                transition: none;
+                backdrop-filter: none;
             }
         }
     </style>
@@ -1943,6 +1960,9 @@
 
             // Fly to new view
             if (map) {
+                if (map.isMoving()) {
+                    map.stop();
+                }
                 map.flyTo({
                     center: view.center,
                     zoom: view.zoom,
@@ -2207,6 +2227,9 @@
         let riverAnimationId = null;
         let riverStartTime = null;
         const RIVER_DURATION = 15000; // 15 seconds for full animation
+        let riverAutoStarted = false;
+        let riverUserPaused = false;
+        let riverAutoPaused = false;
 
         // Quintile colors
         const quintileColors = {
@@ -2252,14 +2275,21 @@
                 resizeTimeout = requestAnimationFrame(resizeRiverCanvas);
             });
 
-            // Pause animation when Life River section not visible
+            // Start/pause animation based on visibility
             const riverObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (!entry.isIntersecting && riverAnimating) {
+                    if (entry.isIntersecting) {
+                        if (!riverUserPaused && (!riverAutoStarted || riverAutoPaused)) {
+                            startRiverAnimation();
+                            riverAutoStarted = true;
+                            riverAutoPaused = false;
+                        }
+                    } else if (riverAnimating) {
                         pauseRiverAnimation();
+                        riverAutoPaused = true;
                     }
                 });
-            }, { threshold: 0.1 });
+            }, { threshold: 0.35 });
             riverObserver.observe(document.getElementById('lifeRiver'));
 
             // Setup controls
@@ -2292,12 +2322,7 @@
                 }
             });
 
-            // Auto-play after a short delay
-            setTimeout(() => {
-                if (particleData) {
-                    startRiverAnimation();
-                }
-            }, 1000);
+            // Animation now starts when the section enters the viewport
         }
 
         function resizeRiverCanvas() {
@@ -2314,7 +2339,9 @@
         function toggleRiverAnimation() {
             if (riverAnimating) {
                 pauseRiverAnimation();
+                riverUserPaused = true;
             } else {
+                riverUserPaused = false;
                 startRiverAnimation();
             }
         }
