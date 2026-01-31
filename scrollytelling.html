@@ -1495,6 +1495,10 @@
             [70, 200, 140],   // Light emerald
             [46, 235, 120],   // Emerald - highest tier
         ];
+        const BASE_FILL_ALPHA = 140;
+        const HIGHLIGHT_FILL_ALPHA = 220;
+        const LOW_FILL_ALPHA = 190;
+        const MIN_FILL_ALPHA = 70;
 
         function getMobilityColor(kfr, alpha = 180) {
             if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
@@ -1649,18 +1653,19 @@
                     // Use dimOpacity for non-highlighted areas when highlights are active
                     let alpha;
                     if (isHighlighted) {
-                        alpha = 255; // Full brightness for highlighted
+                        alpha = HIGHLIGHT_FILL_ALPHA;
                     } else if (isLowMobility) {
-                        alpha = 240; // Emphasize low mobility areas
+                        alpha = LOW_FILL_ALPHA;
                     } else if (config.highlight || config.highlightLow) {
                         // Use dimOpacity for background, minimum 0.55 to keep detail visible
                         const dimOp = config.dimOpacity || 0.55;
-                        alpha = Math.floor(200 * dimOp);
+                        alpha = Math.floor(BASE_FILL_ALPHA * dimOp);
                     } else {
                         // Normal display - high visibility
-                        alpha = Math.floor(220 * config.opacity);
+                        alpha = Math.floor(BASE_FILL_ALPHA * (config.opacity ?? 1));
                     }
 
+                    if (alpha < MIN_FILL_ALPHA) alpha = MIN_FILL_ALPHA;
                     return [baseColor[0], baseColor[1], baseColor[2], alpha];
                 },
                 getLineColor: f => {
