@@ -1453,7 +1453,7 @@
         let summaryStats = {};
         let countiesGeoJson = null;
         let map = null;
-        let deckOverlay = null;
+        let choroplethLayer = null;
         let currentStep = 1;
         let currentDemo = 'pooled';
         let selectedCounty = null;
@@ -1496,18 +1496,8 @@
             [46, 235, 120],   // Emerald - highest tier
         ];
 
-        const MAP_BG = [27, 38, 48];
-        const NO_DATA_COLOR = [120, 120, 120];
-
-        function applyDim(color, dim) {
-            const r = Math.round(MAP_BG[0] + (color[0] - MAP_BG[0]) * dim);
-            const g = Math.round(MAP_BG[1] + (color[1] - MAP_BG[1]) * dim);
-            const b = Math.round(MAP_BG[2] + (color[2] - MAP_BG[2]) * dim);
-            return [r, g, b, 255];
-        }
-
         function getMobilityColor(kfr, alpha = 180) {
-            if (kfr === null || kfr === undefined) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
+            if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
 
             // Find the quantile bin
             let bin = colorBreaks.findIndex(b => kfr < b);
@@ -1629,7 +1619,7 @@
         }
 
         // Create GeoJSON layer for choropleth
-        function createChoroplethLayer(demo = 'pooled') {
+        function createChoroplethLayerProps(demo = 'pooled') {
             if (!countiesGeoJson) return null;
 
             const kfrKey = demo === 'pooled' ? 'kfr' : `kfr_${demo[0]}`;
@@ -1638,14 +1628,15 @@
             // Join county data with geometry
             const dataMap = new Map(countyData.map(d => [d.fips, d]));
 
-            return new deck.GeoJsonLayer({
+            return {
                 id: 'county-choropleth',
+                type: deck.GeoJsonLayer,
                 data: countiesGeoJson,
                 getFillColor: f => {
                     const fips = getFeatureFips(f);
-                    if (!fips) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
+                    if (!fips) return [200, 200, 200, 50];
                     const county = dataMap.get(fips);
-                    if (!county) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
+                    if (!county) return [200, 200, 200, 50];
 
                     const kfr = demo === 'pooled' ? county.kfr : county[kfrKey];
                     const baseColor = getMobilityColor(kfr, 255);
@@ -1654,19 +1645,23 @@
                     const isHighlighted = config.highlight?.some(code => fips.startsWith(code));
                     const isLowMobility = config.highlightLow && kfr !== null && kfr !== undefined && kfr < 0.38;
 
-                    // Dim by blending with background instead of transparency (prevents basemap bleed)
-                    let dim;
+                    // Calculate alpha based on highlight state and config
+                    // Use dimOpacity for non-highlighted areas when highlights are active
+                    let alpha;
                     if (isHighlighted) {
-                        dim = 1;
+                        alpha = 255; // Full brightness for highlighted
                     } else if (isLowMobility) {
-                        dim = 0.95;
+                        alpha = 240; // Emphasize low mobility areas
                     } else if (config.highlight || config.highlightLow) {
-                        dim = config.dimOpacity || 0.55;
+                        // Use dimOpacity for background, minimum 0.55 to keep detail visible
+                        const dimOp = config.dimOpacity || 0.55;
+                        alpha = Math.floor(200 * dimOp);
                     } else {
-                        dim = config.opacity || 1;
+                        // Normal display - high visibility
+                        alpha = Math.floor(220 * config.opacity);
                     }
 
-                    return applyDim(baseColor, dim);
+                    return [baseColor[0], baseColor[1], baseColor[2], alpha];
                 },
                 getLineColor: f => {
                     const fips = getFeatureFips(f);
@@ -1710,7 +1705,7 @@
                 transitions: {
                     getFillColor: 800
                 }
-            });
+            };
         }
 
         // Tooltip functions
@@ -2013,7 +2008,7 @@
         function initMap() {
             map = new maplibregl.Map({
                 container: 'map',
-                style: 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json',
+                style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
                 center: [-98, 38],
                 zoom: 3.5,
                 maxBounds: [[-180, 15], [-60, 72]],
@@ -2021,15 +2016,7 @@
             });
 
             map.on('load', () => {
-                removeSymbolLayers();
-                // Initialize deck.gl overlay
-                deckOverlay = new deck.MapboxOverlay({
-                    interleaved: false,
-                    layers: []
-                });
-                map.addControl(deckOverlay);
-
-                // Add choropleth layer
+                // Add choropleth layer below labels
                 updateLayers();
             });
 
@@ -2037,27 +2024,33 @@
             map.addControl(new maplibregl.NavigationControl(), 'top-left');
         }
 
-        function removeSymbolLayers() {
+        function getChoroplethBeforeId() {
             const style = map?.getStyle();
-            if (!style || !style.layers) return;
-            style.layers
-                .filter(layer => layer.type === 'symbol')
-                .forEach(layer => {
-                    if (map.getLayer(layer.id)) {
-                        map.removeLayer(layer.id);
-                    }
-                });
+            if (!style || !style.layers) return null;
+            const lineOrSymbol = style.layers.find(layer =>
+                layer.type === 'line' || layer.type === 'symbol'
+            );
+            return lineOrSymbol ? lineOrSymbol.id : null;
         }
 
         // Update deck.gl layers
         function updateLayers() {
-            if (!deckOverlay) return;
+            if (!map) return;
 
-            const layers = [
-                createChoroplethLayer(currentDemo)
-            ].filter(Boolean);
+            const layerProps = createChoroplethLayerProps(currentDemo);
+            if (!layerProps) return;
 
-            deckOverlay.setProps({ layers });
+            if (!choroplethLayer) {
+                choroplethLayer = new deck.MapboxLayer(layerProps);
+                const beforeId = getChoroplethBeforeId();
+                if (beforeId) {
+                    map.addLayer(choroplethLayer, beforeId);
+                } else {
+                    map.addLayer(choroplethLayer);
+                }
+            } else {
+                choroplethLayer.setProps(layerProps);
+            }
         }
 
         // Demo toggle handler
