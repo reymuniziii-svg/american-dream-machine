@@ -1496,8 +1496,18 @@
             [46, 235, 120],   // Emerald - highest tier
         ];
 
+        const MAP_BG = [27, 38, 48];
+        const NO_DATA_COLOR = [120, 120, 120];
+
+        function applyDim(color, dim) {
+            const r = Math.round(MAP_BG[0] + (color[0] - MAP_BG[0]) * dim);
+            const g = Math.round(MAP_BG[1] + (color[1] - MAP_BG[1]) * dim);
+            const b = Math.round(MAP_BG[2] + (color[2] - MAP_BG[2]) * dim);
+            return [r, g, b, 255];
+        }
+
         function getMobilityColor(kfr, alpha = 180) {
-            if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
+            if (kfr === null || kfr === undefined) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
 
             // Find the quantile bin
             let bin = colorBreaks.findIndex(b => kfr < b);
@@ -1633,9 +1643,9 @@
                 data: countiesGeoJson,
                 getFillColor: f => {
                     const fips = getFeatureFips(f);
-                    if (!fips) return [200, 200, 200, 50];
+                    if (!fips) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
                     const county = dataMap.get(fips);
-                    if (!county) return [200, 200, 200, 50];
+                    if (!county) return [NO_DATA_COLOR[0], NO_DATA_COLOR[1], NO_DATA_COLOR[2], 255];
 
                     const kfr = demo === 'pooled' ? county.kfr : county[kfrKey];
                     const baseColor = getMobilityColor(kfr, 255);
@@ -1644,23 +1654,19 @@
                     const isHighlighted = config.highlight?.some(code => fips.startsWith(code));
                     const isLowMobility = config.highlightLow && kfr !== null && kfr !== undefined && kfr < 0.38;
 
-                    // Calculate alpha based on highlight state and config
-                    // Use dimOpacity for non-highlighted areas when highlights are active
-                    let alpha;
+                    // Dim by blending with background instead of transparency (prevents basemap bleed)
+                    let dim;
                     if (isHighlighted) {
-                        alpha = 255; // Full brightness for highlighted
+                        dim = 1;
                     } else if (isLowMobility) {
-                        alpha = 240; // Emphasize low mobility areas
+                        dim = 0.95;
                     } else if (config.highlight || config.highlightLow) {
-                        // Use dimOpacity for background, minimum 0.55 to keep detail visible
-                        const dimOp = config.dimOpacity || 0.55;
-                        alpha = Math.floor(200 * dimOp);
+                        dim = config.dimOpacity || 0.55;
                     } else {
-                        // Normal display - high visibility
-                        alpha = Math.floor(220 * config.opacity);
+                        dim = config.opacity || 1;
                     }
 
-                    return [baseColor[0], baseColor[1], baseColor[2], alpha];
+                    return applyDim(baseColor, dim);
                 },
                 getLineColor: f => {
                     const fips = getFeatureFips(f);
