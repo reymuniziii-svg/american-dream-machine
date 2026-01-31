@@ -1467,7 +1467,8 @@
 
         // Quantile-based color scale for mobility (7 classes for better distribution)
         // Breaks based on data quantiles from summary.json: p10=0.339, p25=0.38, median=0.425, p75=0.473, p90=0.522
-        const COLOR_BREAKS = [0.34, 0.38, 0.42, 0.46, 0.50, 0.54];
+        const DEFAULT_COLOR_BREAKS = [0.34, 0.38, 0.42, 0.46, 0.50, 0.54];
+        let colorBreaks = [...DEFAULT_COLOR_BREAKS];
         const QUANTILE_COLORS = [
             [163, 50, 11],    // Rust - lowest tier
             [196, 85, 50],    // Dark terra cotta
@@ -1482,15 +1483,15 @@
             if (kfr === null || kfr === undefined) return [128, 128, 128, 100];
 
             // Find the quantile bin
-            let bin = COLOR_BREAKS.findIndex(b => kfr < b);
-            if (bin === -1) bin = COLOR_BREAKS.length; // Above all breaks
+            let bin = colorBreaks.findIndex(b => kfr < b);
+            if (bin === -1) bin = colorBreaks.length; // Above all breaks
 
             // Get base color for bin
             const color = QUANTILE_COLORS[bin];
 
             // Smooth interpolation within bin for gradual transitions
-            let lowerBound = bin === 0 ? 0.25 : COLOR_BREAKS[bin - 1];
-            let upperBound = bin === COLOR_BREAKS.length ? 0.65 : COLOR_BREAKS[bin];
+            let lowerBound = bin === 0 ? (summaryStats.kfr_min ?? 0.25) : colorBreaks[bin - 1];
+            let upperBound = bin === colorBreaks.length ? (summaryStats.kfr_max ?? 0.65) : colorBreaks[bin];
             let t = (kfr - lowerBound) / (upperBound - lowerBound);
             t = Math.max(0, Math.min(1, t));
 
@@ -1506,6 +1507,79 @@
             }
 
             return [...color, alpha];
+        }
+
+        function getFeatureFips(feature) {
+            if (!feature) return null;
+            const props = feature.properties || {};
+            if (feature.id !== undefined && feature.id !== null) {
+                return String(feature.id).padStart(5, '0');
+            }
+            if (props.GEOID) return String(props.GEOID).padStart(5, '0');
+            if (props.fips) return String(props.fips).padStart(5, '0');
+            if (props.GEO_ID) {
+                const match = String(props.GEO_ID).match(/US(\\d{5})$/);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        const LSAD_LABELS = {
+            'County': 'County',
+            'Parish': 'Parish',
+            'Borough': 'Borough',
+            'Cty&Bor': 'City and Borough',
+            'CA': 'Census Area',
+            'Muno': 'Municipio',
+            'Muny': 'Municipality',
+            'city': 'City'
+        };
+
+        function formatCountyName(name, lsad) {
+            if (!name) return '';
+            const label = LSAD_LABELS[lsad] || lsad || '';
+            return label ? `${name} ${label}` : name;
+        }
+
+        function applyCountyNamesFromGeo() {
+            if (!countiesGeoJson || !countyData.length) return;
+
+            const nameByFips = new Map();
+            for (const feature of countiesGeoJson.features || []) {
+                const fips = getFeatureFips(feature);
+                if (!fips) continue;
+                const props = feature.properties || {};
+                const name = props.NAME || props.name;
+                if (!name) continue;
+                const lsad = props.LSAD || '';
+                nameByFips.set(fips, {
+                    name,
+                    displayName: formatCountyName(name, lsad),
+                    lsad
+                });
+            }
+
+            countyData.forEach(county => {
+                const meta = nameByFips.get(county.fips);
+                if (!meta) return;
+                if (!county.cz_name) county.cz_name = county.name;
+                county.county_name = meta.name;
+                county.lsad = meta.lsad;
+                county.name = meta.displayName || meta.name;
+            });
+        }
+
+        function updateColorBreaksFromSummary() {
+            if (!summaryStats || summaryStats.kfr_p10 === undefined) return;
+            const max = summaryStats.kfr_max ?? DEFAULT_COLOR_BREAKS[DEFAULT_COLOR_BREAKS.length - 1];
+            colorBreaks = [
+                summaryStats.kfr_p10,
+                summaryStats.kfr_p25,
+                summaryStats.kfr_median,
+                summaryStats.kfr_p75,
+                summaryStats.kfr_p90,
+                max
+            ];
         }
 
         // Animate counter
@@ -1541,7 +1615,8 @@
                 id: 'county-choropleth',
                 data: countiesGeoJson,
                 getFillColor: f => {
-                    const fips = f.properties.GEOID || f.properties.fips;
+                    const fips = getFeatureFips(f);
+                    if (!fips) return [200, 200, 200, 50];
                     const county = dataMap.get(fips);
                     if (!county) return [200, 200, 200, 50];
 
@@ -1550,7 +1625,7 @@
 
                     // Check if this region should be highlighted
                     const isHighlighted = config.highlight?.some(code => fips.startsWith(code));
-                    const isLowMobility = config.highlightLow && kfr < 0.38;
+                    const isLowMobility = config.highlightLow && kfr !== null && kfr !== undefined && kfr < 0.38;
 
                     // Calculate alpha based on highlight state and config
                     // Use dimOpacity for non-highlighted areas when highlights are active
@@ -1571,14 +1646,14 @@
                     return [baseColor[0], baseColor[1], baseColor[2], alpha];
                 },
                 getLineColor: f => {
-                    const fips = f.properties.GEOID || f.properties.fips;
-                    const isHighlighted = config.highlight?.some(code => fips.startsWith(code));
+                    const fips = getFeatureFips(f);
+                    const isHighlighted = fips && config.highlight?.some(code => fips.startsWith(code));
                     // Brighter borders for highlighted regions, visible borders for all
                     return isHighlighted ? [255, 255, 255, 220] : [255, 255, 255, 100];
                 },
                 lineWidthMinPixels: f => {
-                    const fips = f.properties?.GEOID || f.properties?.fips;
-                    const isHighlighted = config.highlight?.some(code => fips?.startsWith(code));
+                    const fips = getFeatureFips(f);
+                    const isHighlighted = fips && config.highlight?.some(code => fips.startsWith(code));
                     return isHighlighted ? 2 : 1;
                 },
                 pickable: true,
@@ -1586,8 +1661,8 @@
                 highlightColor: [255, 255, 255, 120],
                 onHover: info => {
                     if (info.object) {
-                        const fips = info.object.properties.GEOID || info.object.properties.fips;
-                        const county = dataMap.get(fips);
+                        const fips = getFeatureFips(info.object);
+                        const county = fips ? dataMap.get(fips) : null;
                         if (county) {
                             showTooltip(info.x, info.y, county);
                         }
@@ -1597,8 +1672,8 @@
                 },
                 onClick: info => {
                     if (info.object) {
-                        const fips = info.object.properties.GEOID || info.object.properties.fips;
-                        const county = dataMap.get(fips);
+                        const fips = getFeatureFips(info.object);
+                        const county = fips ? dataMap.get(fips) : null;
                         if (county) {
                             selectCounty(county);
                         }
@@ -1618,8 +1693,8 @@
         // Tooltip functions
         function showTooltip(x, y, county) {
             const tooltip = document.getElementById('tooltip');
-            const kfr = county.kfr || 0;
-            const pct = county.kfr_pct || 0;
+            const kfr = county.kfr ?? 0;
+            const pct = county.kfr_pct ?? 0;
 
             tooltip.innerHTML = `
                 <div class="tooltip__title">${county.name || 'Unknown'}</div>
@@ -1633,6 +1708,22 @@
 
         function hideTooltip() {
             document.getElementById('tooltip').classList.remove('visible');
+        }
+
+        function setDemoBar(barId, valId, value) {
+            const bar = document.getElementById(barId);
+            const valEl = document.getElementById(valId);
+            if (!bar || !valEl) return;
+
+            if (value === null || value === undefined) {
+                bar.style.width = '0%';
+                bar.style.opacity = '0.2';
+                valEl.textContent = 'N/A';
+            } else {
+                bar.style.width = `${value * 100}%`;
+                bar.style.opacity = '1';
+                valEl.textContent = value.toFixed(2);
+            }
         }
 
         // Select county and show details
@@ -1650,17 +1741,17 @@
             // Render mini-map
             renderMiniMap(county);
 
-            const kfr = county.kfr || 0;
+            const kfr = county.kfr ?? 0;
             document.getElementById('countyScore').textContent = kfr.toFixed(2);
 
             const pctEl = document.getElementById('countyPercentile');
-            const pct = county.kfr_pct || 50;
+            const pct = county.kfr_pct ?? 50;
             pctEl.textContent = `Top ${Math.round(100 - pct)}% of US`;
             pctEl.className = 'county-card__percentile' + (pct < 50 ? ' low' : '');
 
             // Update comparison badge (national median is 0.425 from summary.json)
             const compEl = document.getElementById('countyComparison');
-            const nationalMedian = 0.425;
+            const nationalMedian = summaryStats.kfr_median ?? 0.425;
             const diff = Math.round((kfr - nationalMedian) * 100);
             if (diff !== 0) {
                 const sign = diff > 0 ? '+' : '';
@@ -1678,7 +1769,7 @@
             const incomeStr = '$' + Math.round(income / 1000) + 'K';
             document.getElementById('metricIncome').textContent = incomeStr;
 
-            const jail = county.jail || 0.02;
+            const jail = county.jail ?? 0.02;
             document.getElementById('metricJail').textContent = (jail * 100).toFixed(1) + '%';
 
             // Story text
@@ -1692,21 +1783,14 @@
             }
 
             // Demographics
-            const kfrW = county.kfr_w || kfr;
-            const kfrB = county.kfr_b || kfr;
-            const kfrH = county.kfr_h || kfr;
-
-            document.getElementById('barWhite').style.width = `${kfrW * 100}%`;
-            document.getElementById('valWhite').textContent = kfrW.toFixed(2);
-            document.getElementById('barBlack').style.width = `${kfrB * 100}%`;
-            document.getElementById('valBlack').textContent = kfrB ? kfrB.toFixed(2) : 'N/A';
-            document.getElementById('barHisp').style.width = `${kfrH * 100}%`;
-            document.getElementById('valHisp').textContent = kfrH ? kfrH.toFixed(2) : 'N/A';
+            setDemoBar('barWhite', 'valWhite', county.kfr_w);
+            setDemoBar('barBlack', 'valBlack', county.kfr_b);
+            setDemoBar('barHisp', 'valHisp', county.kfr_h);
 
             // Fly map to county if requested
             if (flyToCounty && map && countiesGeoJson) {
                 const feature = countiesGeoJson.features.find(f =>
-                    (f.properties.GEOID || f.id) === county.fips
+                    getFeatureFips(f) === county.fips
                 );
                 if (feature) {
                     try {
@@ -1738,7 +1822,7 @@
             '37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma',
             '41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina',
             '46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont',
-            '51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+            '51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming','72':'Puerto Rico'
         };
 
         // Find county using point-in-polygon with turf.js
@@ -1751,7 +1835,7 @@
             for (const feature of countiesGeoJson.features) {
                 try {
                     if (turf.booleanPointInPolygon(point, feature)) {
-                        const fips = feature.properties.GEOID || feature.id;
+                        const fips = getFeatureFips(feature);
                         return countyData.find(c => c.fips === fips);
                     }
                 } catch (e) {
@@ -1801,7 +1885,7 @@
             svg.innerHTML = '';
 
             const feature = countiesGeoJson?.features.find(f =>
-                (f.properties.GEOID || f.id) === county.fips
+                getFeatureFips(f) === county.fips
             );
             if (!feature) return;
 
@@ -1906,7 +1990,7 @@
                 style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
                 center: [-98, 38],
                 zoom: 3.5,
-                maxBounds: [[-130, 20], [-60, 52]],
+                maxBounds: [[-180, 15], [-60, 72]],
                 attributionControl: false
             });
 
@@ -2039,6 +2123,8 @@
             const matches = countyData.filter(c => {
                 // Match county name
                 if (c.name && c.name.toLowerCase().includes(queryLower)) return true;
+                // Match commuting zone / city name if available
+                if (c.cz_name && c.cz_name.toLowerCase().includes(queryLower)) return true;
                 // Match state name (convert FIPS to name first)
                 const stateName = STATE_NAMES[c.state];
                 if (stateName && stateName.toLowerCase().includes(queryLower)) return true;
@@ -2047,8 +2133,10 @@
 
             // Sort by relevance - exact name matches first
             matches.sort((a, b) => {
-                const aExact = a.name && a.name.toLowerCase().startsWith(queryLower);
-                const bExact = b.name && b.name.toLowerCase().startsWith(queryLower);
+                const aExact = (a.name && a.name.toLowerCase().startsWith(queryLower)) ||
+                    (a.cz_name && a.cz_name.toLowerCase().startsWith(queryLower));
+                const bExact = (b.name && b.name.toLowerCase().startsWith(queryLower)) ||
+                    (b.cz_name && b.cz_name.toLowerCase().startsWith(queryLower));
                 if (aExact && !bExact) return -1;
                 if (!aExact && bExact) return 1;
                 return 0;
@@ -2596,17 +2684,20 @@
                 // Load summary stats
                 const summaryRes = await fetch('summary.json');
                 summaryStats = await summaryRes.json();
+                updateColorBreaksFromSummary();
 
                 // Load county geometries
                 const geoRes = await fetch('us-counties.json');
                 countiesGeoJson = await geoRes.json();
                 console.log('Loaded county geometries');
+                applyCountyNamesFromGeo();
 
                 // Load particle data for Life River (non-blocking)
                 loadParticleData();
 
                 // Animate hero stats
-                animateCounter(document.getElementById('stat-tracts'), 72014);
+                const totalTracts = summaryStats.total_tracts ?? 72014;
+                animateCounter(document.getElementById('stat-tracts'), totalTracts);
                 animateCounter(document.getElementById('stat-children'), 20, 1500, '', 'M');
                 animateCounter(document.getElementById('stat-gap'), 45, 1500, '', '%');
 
