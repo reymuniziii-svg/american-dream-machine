@@ -2007,7 +2007,7 @@
         function initMap() {
             map = new maplibregl.Map({
                 container: 'map',
-                style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+                style: 'https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json',
                 center: [-98, 38],
                 zoom: 3.5,
                 maxBounds: [[-180, 15], [-60, 72]],
@@ -2015,6 +2015,7 @@
             });
 
             map.on('load', () => {
+                removeSymbolLayers();
                 // Initialize deck.gl overlay
                 deckOverlay = new deck.MapboxOverlay({
                     interleaved: false,
@@ -2028,6 +2029,18 @@
 
             // Navigation controls
             map.addControl(new maplibregl.NavigationControl(), 'top-left');
+        }
+
+        function removeSymbolLayers() {
+            const style = map?.getStyle();
+            if (!style || !style.layers) return;
+            style.layers
+                .filter(layer => layer.type === 'symbol')
+                .forEach(layer => {
+                    if (map.getLayer(layer.id)) {
+                        map.removeLayer(layer.id);
+                    }
+                });
         }
 
         // Update deck.gl layers
@@ -2070,10 +2083,34 @@
         }
 
         // Geolocation finder
-        function setupGeolocation() {
+        function setupFinder() {
             const findBtn = document.getElementById('findBtn');
+            const searchInput = document.getElementById('searchInput');
+
             findBtn.addEventListener('click', async () => {
                 findBtn.classList.remove('find-btn--pulse');
+                const query = searchInput ? searchInput.value.trim() : '';
+
+                if (query.length >= 2) {
+                    findBtn.textContent = 'Searching...';
+                    try {
+                        const county = await searchForCounty(query);
+                        if (county) {
+                            selectCounty(county);
+                        } else {
+                            findBtn.textContent = 'Not found';
+                            setTimeout(() => resetFindBtn(), 2000);
+                            return;
+                        }
+                        resetFindBtn();
+                    } catch (err) {
+                        console.error('Search error:', err);
+                        findBtn.textContent = 'Search failed';
+                        setTimeout(() => resetFindBtn(), 2000);
+                    }
+                    return;
+                }
+
                 findBtn.textContent = 'Finding...';
 
                 try {
@@ -2163,56 +2200,6 @@
             });
 
             return matches[0] || null;
-        }
-
-        function setupSearch() {
-            const searchInput = document.getElementById('searchInput');
-            let isSearching = false;
-
-            searchInput.addEventListener('input', debounce(async (e) => {
-                const query = e.target.value.trim();
-                if (query.length < 2 || isSearching) return;
-
-                isSearching = true;
-                try {
-                    const county = await searchForCounty(query);
-                    if (county) {
-                        selectCounty(county);
-                    }
-                } finally {
-                    isSearching = false;
-                }
-            }, 400));
-
-            searchInput.addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
-                    const query = e.target.value.trim();
-                    if (isSearching) return;
-
-                    isSearching = true;
-                    try {
-                        const county = await searchForCounty(query);
-                        if (county) {
-                            selectCounty(county);
-                        }
-                    } finally {
-                        isSearching = false;
-                    }
-                }
-            });
-        }
-
-        // Debounce helper
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
         }
 
         // ========================================
@@ -2736,8 +2723,7 @@
                 initScrollama();
                 setupDemoToggle();
                 setupProgressDots();
-                setupGeolocation();
-                setupSearch();
+                setupFinder();
 
             } catch (err) {
                 console.error('Error loading data:', err);
